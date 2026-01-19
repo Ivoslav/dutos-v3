@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'roster',
 ]
 
 MIDDLEWARE = [
@@ -102,12 +103,18 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/6.0/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+# Настройки за България
+LANGUAGE_CODE = 'bg'  # Прави менютата на български
+TIME_ZONE = 'Europe/Sofia'
 
-TIME_ZONE = 'UTC'
-
+# Формат на датата (DD.MM.YYYY)
+DATE_INPUT_FORMATS = [
+    '%d.%m.%Y',  # 25.10.2023
+    '%d-%m-%Y',  # 25-10-2023
+    '%Y-%m-%d',  # Стандартния (за всеки случай)
+]
+USE_L10N = True
 USE_I18N = True
-
 USE_TZ = True
 
 
