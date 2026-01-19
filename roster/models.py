@@ -81,7 +81,8 @@ class Soldier(models.Model):
         super(Soldier, self).save(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.rank_title} {self.last_name}"
+        # Връща: "Курсант Иванов (111-24055)"
+        return f"{self.rank_title} {self.last_name} ({self.faculty_number})"
 
     class Meta:
         verbose_name = "Военнослужещ"
@@ -98,3 +99,21 @@ class DutyType(models.Model):
     class Meta:
         verbose_name = "Вид Наряд"
         verbose_name_plural = "Видове Наряди"
+
+class DutyShift(models.Model):
+    date = models.DateField(verbose_name="Дата на наряда")
+    duty_type = models.ForeignKey(DutyType, on_delete=models.CASCADE, verbose_name="Вид наряд")
+    soldier = models.ForeignKey(Soldier, on_delete=models.CASCADE, verbose_name="Назначен")
+    
+    # Допълнително инфо (ако се наложи смяна)
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Създаден на")
+
+    def __str__(self):
+        # Тук ползваме self.soldier.last_name, защото името е вътре във войника!
+        return f"{self.date} - {self.duty_type}: {self.soldier}"
+
+    class Meta:
+        verbose_name = "Назначен наряд"
+        verbose_name_plural = "График на нарядите"
+        # Уникалност: Един войник не може да има 2 наряда в един ден!
+        unique_together = ('date', 'soldier')

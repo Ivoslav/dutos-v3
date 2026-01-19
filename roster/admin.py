@@ -1,5 +1,5 @@
 from django.contrib import admin  # <--- ТОВА ЛИПСВАШЕ
-from .models import CourseOrRank, Soldier, DutyType
+from .models import CourseOrRank, DutyShift, Soldier, DutyType, DutyShift
 
 # 1. Настройка за Военнослужещи
 @admin.register(Soldier)
@@ -29,3 +29,9 @@ class SoldierAdmin(admin.ModelAdmin):
 # 2. Регистриране на останалите модели (по-просто)
 admin.site.register(CourseOrRank)
 admin.site.register(DutyType)
+
+@admin.register(DutyShift)  # <-- Трябва да импортнеш DutyShift най-горе!
+class DutyShiftAdmin(admin.ModelAdmin):
+    list_display = ('date', 'duty_type', 'soldier')
+    list_filter = ('date', 'duty_type')
+    date_hierarchy = 'date' # Добавя навигация по дати най-горе
