@@ -7,4 +7,7 @@ urlpatterns = [
     
     # Страница за статистика (http://.../roster/stats/)
     path('stats/', views.statistics_view, name='roster_stats'),
+    
+    # НОВО: Път за поп-ъпа
+    path('soldier/<int:soldier_id>/', views.soldier_profile, name='soldier_profile'),
 ]

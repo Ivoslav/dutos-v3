@@ -1,20 +1,23 @@
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404, redirect
 from .models import DutyShift, DutyType, Soldier # <--- Важно: Трябва да импортнем и Soldier!
+from .forms import DutyShiftForm
 import datetime
 
 # --- ФУНКЦИЯ 1: ГРАФИК (Това ти липсваше) ---
 def roster_view(request):
-    # 1. Взимаме днешната дата или избрана от потребителя
+    # 1. Взимаме днешната дата
     date_str = request.GET.get('date')
     if date_str:
         selected_date = datetime.datetime.strptime(date_str, '%Y-%m-%d').date()
     else:
         selected_date = datetime.date.today()
 
-    # 2. Взимаме нарядите за тази дата
-    shifts = DutyShift.objects.filter(date=selected_date).order_by('duty_type__weight')
+    # 2. ПРОМЯНА: Сортираме по Старшинство на курса (5-ти най-горе), после по тежест на наряда
+    shifts = DutyShift.objects.filter(date=selected_date).order_by(
+        '-soldier__rank_group__priority',  # Групиране (5 -> 1)
+        '-duty_type__weight'               # Най-тежките наряди най-горе
+    )
 
-    # 3. Пращаме ги към HTML шаблона
     context = {
         'selected_date': selected_date,
         'shifts': shifts,
@@ -55,3 +58,35 @@ def statistics_view(request):
         'by_class': by_class,
     }
     return render(request, 'roster/statistics.html', context)
+
+
+def soldier_profile(request, soldier_id):
+    soldier = get_object_or_404(Soldier, id=soldier_id)
+    
+    # 1. История на нарядите (Последните първи)
+    history = DutyShift.objects.filter(soldier=soldier).order_by('-date')
+
+    # 2. Обработка на формата за НОВ наряд
+    if request.method == 'POST':
+        form = DutyShiftForm(request.POST)
+        if form.is_valid():
+            shift = form.save(commit=False)
+            shift.soldier = soldier # Слагаме войника автоматично
+            shift.save()
+            
+            # Добавяме точките веднага
+            soldier.score += shift.duty_type.weight
+            soldier.save()
+            
+            # Връщаме се на статистиката
+            return redirect('roster_stats')
+    else:
+        form = DutyShiftForm()
+
+    context = {
+        'soldier': soldier,
+        'history': history,
+        'form': form,
+    }
+    # Връщаме само парче HTML, не цяла страница!
+    return render(request, 'roster/modal_profile.html', context)

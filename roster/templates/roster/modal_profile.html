@@ -1,0 +1,48 @@
+<div class="modal-header">
+    <h5 class="modal-title">📂 {{ soldier.rank_title }} {{ soldier.last_name }}</h5>
+    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+</div>
+
+<div class="modal-body">
+    <div class="row">
+        <div class="col-md-5 border-end">
+            <p><strong>Номер:</strong> {{ soldier.faculty_number }}</p>
+            <p><strong>Точки:</strong> <span class="badge bg-primary">{{ soldier.score }}</span></p>
+            <p><strong>Взвод:</strong> {{ soldier.platoon }}</p>
+            
+            <hr>
+            <h6>➕ Ръчно добавяне</h6>
+            <form method="post" action="{% url 'soldier_profile' soldier.id %}">
+                {% csrf_token %}
+                <div class="mb-2">
+                    <label>Дата:</label>
+                    {{ form.date }}
+                </div>
+                <div class="mb-2">
+                    <label>Наряд:</label>
+                    {{ form.duty_type }}
+                </div>
+                <button type="submit" class="btn btn-success btn-sm w-100">Запиши наряд</button>
+            </form>
+        </div>
+
+        <div class="col-md-7">
+            <h6>📜 История на дежурствата</h6>
+            <div style="max-height: 300px; overflow-y: auto;">
+                <table class="table table-sm table-striped">
+                    <thead><tr><th>Дата</th><th>Наряд</th></tr></thead>
+                    <tbody>
+                    {% for shift in history %}
+                        <tr>
+                            <td>{{ shift.date|date:"d.m.Y" }}</td>
+                            <td>{{ shift.duty_type.name }}</td>
+                        </tr>
+                    {% empty %}
+                        <tr><td colspan="2" class="text-muted">Няма записи.</td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
