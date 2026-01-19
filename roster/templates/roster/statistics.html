@@ -84,20 +84,40 @@
             
             <div class="row">
             {% for company in company_list %}
-                <div class="col-md-6 mb-4">
-                    <div class="card h-100">
-                        <div class="card-header bg-dark text-white">
-                            {{ company.grouper }}
-                            <span class="badge bg-light text-dark float-end">{{ company.list|length }} човека</span>
+                <div class="col-lg-6 mb-4">
+                    <div class="card h-100 shadow-sm">
+                        <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">{{ company.grouper }}</h5>
+                            <span class="badge bg-light text-dark">{{ company.list|length }} личен състав</span>
                         </div>
-                        <ul class="list-group list-group-flush">
-                            {% for s in company.list %}
-                            <li class="list-group-item d-flex justify-content-between">
-                                <span>{{ s.rank_title }} {{ s.last_name }}</span>
-                                <small class="text-muted">{{ s.platoon }}-ти отряд</small>
-                            </li>
-                            {% endfor %}
-                        </ul>
+                        
+                        <div class="table-responsive">
+                            <table class="table table-hover table-sm mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Звание и Име</th>
+                                        <th class="text-end">Взвод / Статус</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                {% for s in company.list %}
+                                    <tr>
+                                        <td class="align-middle">
+                                            <strong>{{ s.rank_title }}</strong> {{ s.last_name }}
+                                            <div class="text-muted small" style="font-size: 0.75rem;">{{ s.faculty_number }}</div>
+                                        </td>
+                                        <td class="text-end align-middle">
+                                            {% if s.platoon == 'Млади' %}
+                                                <span class="badge bg-success">👶 Млади курсанти</span>
+                                            {% else %}
+                                                <span class="badge bg-primary">{{ s.platoon }}-ви взвод</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             {% endfor %}
