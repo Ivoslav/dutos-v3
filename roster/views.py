@@ -24,9 +24,12 @@ def roster_view(request):
 # --- ФУНКЦИЯ 2: СТАТИСТИКА (Новата) ---
 def statistics_view(request):
     # 1. ТОЧКИ (Сортирани от най-много към най-малко)
-    leaderboard = Soldier.objects.filter(is_active=True).order_by('-score')
+    leaderboard = Soldier.objects.filter(is_active=True).order_by('rank_group__priority', '-score')
 
     # 2. ЗА ГРУПИРАНЕ (Трябва да са сортирани, за да работи групирането в шаблона)
+    by_company = Soldier.objects.filter(is_active=True).order_by('company', 'rank_group')
+    by_crew = Soldier.objects.filter(is_active=True).exclude(crew="").order_by('crew', 'last_name')
+    by_class = Soldier.objects.filter(is_active=True).order_by('class_section', 'faculty_number')
     by_company = Soldier.objects.filter(is_active=True).order_by('company', 'rank_group')
     by_crew = Soldier.objects.filter(is_active=True).exclude(crew="").order_by('crew', 'last_name')
     by_class = Soldier.objects.filter(is_active=True).order_by('class_section', 'faculty_number')
