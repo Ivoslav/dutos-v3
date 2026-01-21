@@ -104,14 +104,33 @@
                     <h2 class="accordion-header" id="heading{{ key }}">
                         <button class="accordion-button {% if not forloop.first %}collapsed{% endif %}" type="button" 
                                 data-bs-toggle="collapse" data-bs-target="#collapse{{ key }}">
-                            <div class="d-flex w-100 justify-content-between align-items-center me-3">
-                                <span class="fw-bold text-{{ group.class }}">{{ group.name }}</span>
+                            
+                            <div class="d-flex w-100 justify-content-between align-items-center me-3 flex-wrap">
+                                <span class="fw-bold text-{{ group.class }} me-2">{{ group.name }}</span>
                                 
-                                <div style="font-size: 0.9rem;">
-                                    <span class="badge bg-secondary">По списък: {{ group.total }}</span>
+                                <div style="font-size: 0.85rem;" class="d-flex gap-1">
+                                    <span class="badge bg-secondary">Списък: {{ group.total }}</span>
                                     <span class="badge bg-success">Налице: {{ group.present }}</span>
-                                    {% if group.duty %}<span class="badge bg-dark">Наряд: {{ group.duty|length }}</span>{% endif %}
-                                    {% if group.sick %}<span class="badge bg-danger">Болни: {{ group.sick|length }}</span>{% endif %}
+                                    
+                                    {% if group.duty %}
+                                        <span class="badge bg-dark">Наряд: {{ group.duty|length }}</span>
+                                    {% endif %}
+                                    
+                                    {% if group.sick %}
+                                        <span class="badge bg-danger">Болни: {{ group.sick|length }}</span>
+                                    {% endif %}
+
+                                    {% if group.home %}
+                                        <span class="badge bg-warning text-dark">ДО: {{ group.home|length }}</span>
+                                    {% endif %}
+
+                                    {% if group.mission %}
+                                        <span class="badge bg-primary">Ком: {{ group.mission|length }}</span>
+                                    {% endif %}
+
+                                    {% if group.other %}
+                                        <span class="badge bg-info text-dark">Други: {{ group.other|length }}</span>
+                                    {% endif %}
                                 </div>
                             </div>
                         </button>
