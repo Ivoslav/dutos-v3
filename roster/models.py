@@ -116,3 +116,23 @@ class DutyShift(models.Model):
         verbose_name_plural = "График на нарядите"
         # Уникалност: Един войник не може да има 2 наряда в един ден!
         unique_together = ('date', 'soldier')
+
+        # ... (след DutyShift)
+
+class Leave(models.Model):
+    TYPE_CHOICES = [
+        ('home', 'Домашен отпуск'),
+        ('sick', 'Болничен / Лазарет'),
+        ('mission', 'Командировка'),
+        ('arrest', 'Арест'),
+        ('other', 'Друго'),
+    ]
+
+    soldier = models.ForeignKey(Soldier, on_delete=models.CASCADE, verbose_name="Военнослужещ")
+    start_date = models.DateField(verbose_name="Начална дата")
+    end_date = models.DateField(verbose_name="Крайна дата")
+    leave_type = models.CharField(max_length=20, choices=TYPE_CHOICES, default='home', verbose_name="Вид")
+    reason = models.CharField(max_length=100, blank=True, verbose_name="Причина (опционално)")
+
+    def __str__(self):
+        return f"{self.soldier.last_name} ({self.get_leave_type_display()})"

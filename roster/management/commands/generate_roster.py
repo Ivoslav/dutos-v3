@@ -1,7 +1,7 @@
 import datetime
 from datetime import timedelta
 from django.core.management.base import BaseCommand
-from roster.models import Soldier, DutyType, DutyShift
+from roster.models import Soldier, DutyType, DutyShift, Leave
 
 class Command(BaseCommand):
     help = 'Генерира график със строги правила за почивка'
@@ -17,18 +17,27 @@ class Command(BaseCommand):
         self.stdout.write(f"⚙️  ПЛАНИРАНЕ ЗА: {target_date}")
 
         # 1. СЪЗДАВАМЕ ЧЕРЕН СПИСЪК (Blacklist)
-        # В него слагаме всички, които вече са заети
         
-        # А) Хора, които са били наряд ВЧЕРА (Почиват днес до обяд, не могат да дават)
+        # А) Хора, които са били наряд ВЧЕРА (Умора)
         tired_soldiers_ids = list(DutyShift.objects.filter(date=yesterday).values_list('soldier_id', flat=True))
         
-        # Б) Хора, които ВЕЧЕ са назначени ДНЕС (за да не дават 2 наряда)
-        # (В началото е празен, ще го пълним докато върви скрипта)
+        # Б) Хора, които ВЕЧЕ са назначени ДНЕС
         assigned_today_ids = list(DutyShift.objects.filter(date=target_date).values_list('soldier_id', flat=True))
 
-        all_forbidden_ids = set(tired_soldiers_ids + assigned_today_ids)
+        # В) НОВО: Хора, които са в ОТПУСК/БОЛНИЧЕН на тази дата
+        # Търсим записи, където target_date попада между start и end date
+        absent_soldiers_ids = list(Leave.objects.filter(
+            start_date__lte=target_date, 
+            end_date__gte=target_date
+        ).values_list('soldier_id', flat=True))
+
+        # Събираме всички забранени в един множество (set), за да няма дубъл
+        all_forbidden_ids = set(tired_soldiers_ids + assigned_today_ids + absent_soldiers_ids)
         
-        self.stdout.write(f"🚫 Брой хора, които почиват или са заети: {len(all_forbidden_ids)}")
+        self.stdout.write(f"🚫 Статистика на липсващите:")
+        self.stdout.write(f"   - Уморени от вчера: {len(tired_soldiers_ids)}")
+        self.stdout.write(f"   - В отпуск/болничен: {len(absent_soldiers_ids)}")
+        self.stdout.write(f"   - Общо недостъпни: {len(all_forbidden_ids)}")
 
         # Взимаме нарядите, сортирани по приоритет (за да напълним важните първо)
         duties = DutyType.objects.all().order_by('-weight')
