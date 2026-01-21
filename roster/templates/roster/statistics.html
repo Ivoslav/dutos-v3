@@ -24,7 +24,7 @@
       }
       .high-score {
         background-color: #dc3545;
-      } /* Червено за претоварените */
+      }
     </style>
   </head>
   <body>
@@ -174,7 +174,6 @@
             var allCollapses = document.querySelectorAll(".accordion-collapse");
             var isAnyOpen = false;
 
-            // Проверяваме дали поне един е отворен
             allCollapses.forEach((el) => {
               if (el.classList.contains("show")) isAnyOpen = true;
             });
@@ -182,9 +181,9 @@
             allCollapses.forEach((el) => {
               var bsCollapse = new bootstrap.Collapse(el, { toggle: false });
               if (isAnyOpen) {
-                bsCollapse.hide(); // Ако има отворени -> затваряме всичко
+                bsCollapse.hide();
               } else {
-                bsCollapse.show(); // Ако всичко е затворено -> отваряме всичко
+                bsCollapse.show();
               }
             });
           }
@@ -432,17 +431,15 @@
         var modalContent = soldierModal.querySelector(".modal-content");
         var bsModal = new bootstrap.Modal(soldierModal);
 
-        // Функция, която прихваща формата след като се зареди
         function bindForm() {
           var form = document.getElementById("dutyForm");
           if (form) {
             form.addEventListener("submit", function (e) {
-              e.preventDefault(); // Спираме стандартното презареждане!
+              e.preventDefault();
 
               var formData = new FormData(form);
               var actionUrl = form.getAttribute("action");
 
-              // Пращаме данните с AJAX
               fetch(actionUrl, {
                 method: "POST",
                 body: formData,
@@ -451,19 +448,16 @@
                 },
               })
                 .then((response) => {
-                  // Ако сървърът ни препраща (значи успех -> redirect)
                   if (response.redirected) {
-                    window.location.reload(); // Презареждаме страницата, за да видим точките
+                    window.location.reload();
                   } else {
-                    // Ако не ни препраща, значи има грешка -> взимаме HTML-а с грешките
                     return response.text();
                   }
                 })
                 .then((html) => {
-                  // Ако сме тук, значи има грешка. Обновяваме само модала.
                   if (html) {
                     modalContent.innerHTML = html;
-                    bindForm(); // Важно: Закачаме слушателя пак за новата форма!
+                    bindForm(); 
                   }
                 })
                 .catch((error) => {
@@ -475,7 +469,6 @@
           }
         }
 
-        // Слушател за клик върху имената
         document.body.addEventListener("click", function (e) {
           var target = e.target.closest(".open-profile");
 
@@ -485,12 +478,11 @@
 
             bsModal.show();
 
-            // Зареждаме съдържанието
             fetch(url)
               .then((response) => response.text())
               .then((html) => {
                 modalContent.innerHTML = html;
-                bindForm(); // Активираме прихващането на формата
+                bindForm(); 
               })
               .catch((err) => {
                 modalContent.innerHTML =
@@ -499,7 +491,6 @@
           }
         });
 
-        // Логиката за Акордеоните (Разпъни/Свий)
         window.toggleAllAccordions = function () {
           var allCollapses = document.querySelectorAll(".accordion-collapse");
           var isAnyOpen = false;

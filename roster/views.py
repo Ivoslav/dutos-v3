@@ -2,14 +2,12 @@ from django.shortcuts import render, get_object_or_404, redirect
 from datetime import timedelta # <--- ВАЖНО: Добави това!
 from .models import DutyShift, DutyType, Soldier, Leave # <--- Важно: Трябва да импортнем и Soldier!
 from .forms import DutyShiftForm
-from django.db.models import Count, Q # <--- Трябва ни за броенето
-from django.contrib import messages    # <--- За съобщения "Успешна смяна"
+from django.db.models import Count, Q
+from django.contrib import messages
 import calendar
 import datetime
 
-# --- ФУНКЦИЯ 1: ГРАФИК (Това ти липсваше) ---
 def roster_view(request):
-    # 1. Дата
     date_str = request.GET.get('date')
     if date_str:
         try:
@@ -19,31 +17,25 @@ def roster_view(request):
     else:
         selected_date = datetime.date.today()
 
-    # 2. НАРЯДИ - ТУК Е ПОПРАВКАТА (order_by)
     shifts = DutyShift.objects.filter(date=selected_date).select_related('soldier', 'duty_type').order_by(
         '-soldier__rank_group__priority', 
         '-duty_type__weight'
     )
 
-    # 3. Отпуски
     leaves = list(Leave.objects.filter(start_date__lte=selected_date, end_date__gte=selected_date).select_related('soldier'))
     
-    # 4. Всички войници (за статистиката)
     all_soldiers = Soldier.objects.filter(is_active=True).order_by('rank_group__priority', 'last_name')
 
-    # 5. Генериране на Строевата Записка (Report)
     report = {
         '1': {'name': '1-ва Рота (ВМС)', 'class': 'primary', 'total': 0, 'present': 0, 'duty': [], 'sick': [], 'home': [], 'mission': [], 'other': []},
         '2': {'name': '2-ра Рота (Медици)', 'class': 'danger', 'total': 0, 'present': 0, 'duty': [], 'sick': [], 'home': [], 'mission': [], 'other': []},
         'young': {'name': 'Млади Курсанти', 'class': 'success', 'total': 0, 'present': 0, 'duty': [], 'sick': [], 'home': [], 'mission': [], 'other': []}
     }
 
-    # Помощни мапове за бързодействие
     shift_map = {s.soldier_id: s for s in shifts}
     leave_map = {l.soldier_id: l for l in leaves}
 
     for s in all_soldiers:
-        # Определяме групата
         if s.platoon == 'Млади':
             group_key = 'young'
         elif s.company == '1':
@@ -55,7 +47,6 @@ def roster_view(request):
 
         report[group_key]['total'] += 1
         
-        # Проверяваме статуса
         if s.id in leave_map:
             l = leave_map[s.id]
             if l.leave_type == 'sick': report[group_key]['sick'].append(l)
@@ -72,43 +63,35 @@ def roster_view(request):
 
     context = {
         'selected_date': selected_date,
-        'shifts': shifts,     # Вече е сортирано правилно
+        'shifts': shifts,
         'report': report,
         'total_on_duty': shifts.count(),
         'all_soldiers': all_soldiers
     }
     return render(request, 'roster/daily_roster.html', context)
 
-# --- ФУНКЦИЯ 2: СТАТИСТИКА (Новата) ---
 def statistics_view(request):
-    # 1. ТОЧКИ (Leaderboard) - Без промяна
     leaderboard = Soldier.objects.filter(is_active=True).order_by('rank_group__priority', '-score')
-
-    # 2. ПОДГОТОВКА ЗА КОЛОНИТЕ (НОВО!)
     
-    # Колона 1: 1-ва Рота (БЕЗ младите)
     company_1 = Soldier.objects.filter(company='1', is_active=True)\
         .exclude(platoon='Млади')\
         .order_by('-rank_group__priority', 'last_name')
 
-    # Колона 2: 2-ра Рота (БЕЗ младите)
     company_2 = Soldier.objects.filter(company='2', is_active=True)\
         .exclude(platoon='Млади')\
         .order_by('-rank_group__priority', 'last_name')
 
-    # Колона 3: Млади Курсанти (Всички, независимо от ротата, защото са отделен взвод)
     young_cadets = Soldier.objects.filter(platoon='Млади', is_active=True)\
-        .order_by('faculty_number') # Тях ги подреждаме по номер, защото са с равни звания
-
-    # Другите групирания
+        .order_by('faculty_number')
+        
     by_crew = Soldier.objects.filter(is_active=True).exclude(crew="").order_by('crew', 'last_name')
     by_class = Soldier.objects.filter(is_active=True).order_by('class_section', 'faculty_number')
 
     context = {
         'leaderboard': leaderboard,
-        'company_1': company_1,      # <--- Пращаме списък 1
-        'company_2': company_2,      # <--- Пращаме списък 2
-        'young_cadets': young_cadets,# <--- Пращаме списък 3
+        'company_1': company_1,
+        'company_2': company_2,
+        'young_cadets': young_cadets,
         'by_crew': by_crew,
         'by_class': by_class,
     }
@@ -119,7 +102,6 @@ def soldier_profile(request, soldier_id):
     soldier = get_object_or_404(Soldier, id=soldier_id)
     today = datetime.date.today()
 
-    # 1. Списъци за визуализация
     upcoming_shifts = DutyShift.objects.filter(soldier=soldier, date__gte=today).order_by('date')
     past_shifts = DutyShift.objects.filter(soldier=soldier, date__lt=today).order_by('-date')
     leaves = Leave.objects.filter(soldier=soldier).order_by('-start_date')
@@ -130,27 +112,23 @@ def soldier_profile(request, soldier_id):
         if form.is_valid():
             new_date = form.cleaned_data['date']
             
-            # --- ПРОВЕРКА 1: ОТПУСК ---
             on_leave = Leave.objects.filter(
                 soldier=soldier,
                 start_date__lte=new_date,
                 end_date__gte=new_date
             ).exists()
 
-            # --- ПРОВЕРКА 2: ДУБЛИРАНЕ (Вече има наряд днес?) ---
             has_shift_today = DutyShift.objects.filter(
                 soldier=soldier, 
                 date=new_date
             ).exists()
 
-            # --- ПРОВЕРКА 3: УМОРА (Бил ли е наряд вчера?) ---
             yesterday = new_date - timedelta(days=1)
             has_shift_yesterday = DutyShift.objects.filter(
                 soldier=soldier, 
                 date=yesterday
             ).exists()
 
-            # --- ЛОГИКА ЗА СПИРАНЕ ---
             if on_leave:
                 form.add_error('date', '⛔ Грешка: Войникът е в отпуск на тази дата!')
             
@@ -161,7 +139,6 @@ def soldier_profile(request, soldier_id):
                 form.add_error('date', '⛔ Грешка: Войникът е уморен (наряд вчера)!')
 
             else:
-                # Всичко е чисто -> Записваме!
                 shift = form.save(commit=False)
                 shift.soldier = soldier
                 shift.save()
@@ -169,7 +146,6 @@ def soldier_profile(request, soldier_id):
                 soldier.score += shift.duty_type.weight
                 soldier.save()
                 
-                # Ако заявката е AJAX (от поп-ъпа), ще върне redirect, който JS ще хване
                 return redirect('roster_stats')
 
     context = {
@@ -202,8 +178,6 @@ def home_calendar(request):
             shifts_by_day[day] = []
         shifts_by_day[day].append(shift)
 
-    # --- НОВА ЛОГИКА: Броим разхода по роти ---
-    # Резултатът ще е: { 21: {'c1': 5, 'c2': 3}, 22: ... }
     stats_by_day = {}
     
     for day, day_shifts in shifts_by_day.items():
@@ -232,7 +206,7 @@ def home_calendar(request):
         'month_name': month_name,
         'month_days': month_days,
         'shifts_by_day': shifts_by_day,
-        'stats_by_day': stats_by_day, # <--- Пращаме новата статистика
+        'stats_by_day': stats_by_day,
         'prev_year': prev_date.year,
         'prev_month': prev_date.month,
         'next_year': next_date.year,
@@ -251,20 +225,16 @@ def emergency_swap(request, shift_id):
         new_soldier = get_object_or_404(Soldier, id=new_soldier_id)
         old_soldier = shift.soldier
         
-        # 1. Махаме точките на стария
         old_soldier.score -= shift.duty_type.weight
         if old_soldier.score < 0: old_soldier.score = 0
         old_soldier.save()
         
-        # 2. Сменяме човека в наряда
         shift.soldier = new_soldier
         shift.save()
         
-        # 3. Даваме точките на новия
         new_soldier.score += shift.duty_type.weight
         new_soldier.save()
         
         messages.success(request, f"🔄 Смяна успешна: {old_soldier.last_name} -> {new_soldier.last_name}")
         
-    # Връщаме се обратно на датата на наряда
     return redirect(f"/roster/daily/?date={shift.date}")
