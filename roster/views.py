@@ -2,6 +2,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from datetime import timedelta # <--- ВАЖНО: Добави това!
 from .models import DutyShift, DutyType, Soldier, Leave # <--- Важно: Трябва да импортнем и Soldier!
 from .forms import DutyShiftForm
+import calendar
 import datetime
 
 # --- ФУНКЦИЯ 1: ГРАФИК (Това ти липсваше) ---
@@ -126,3 +127,55 @@ def soldier_profile(request, soldier_id):
         'form': form,
     }
     return render(request, 'roster/modal_profile.html', context)
+
+def home_calendar(request):
+    # 1. Определяме година и месец (от URL или текущи)
+    today = datetime.date.today()
+    year = int(request.GET.get('year', today.year))
+    month = int(request.GET.get('month', today.month))
+
+    # 2. Изчисляваме Предишен и Следващ месец (за бутоните)
+    prev_date = datetime.date(year, month, 1) - timedelta(days=1)
+    next_date = datetime.date(year, month, 1) + timedelta(days=32)
+    next_date = next_date.replace(day=1)
+
+    # 3. Взимаме матрицата на месеца (Списък от седмици, където 0 е празен ден)
+    cal = calendar.Calendar(firstweekday=0) # 0 = Понеделник
+    month_days = cal.monthdayscalendar(year, month)
+
+    # 4. Взимаме всички наряди за този месец
+    shifts = DutyShift.objects.filter(date__year=year, date__month=month)
+
+    # 5. Групираме нарядите по дни: { 21: [Shift1, Shift2...], 22: [...] }
+    shifts_by_day = {}
+    for shift in shifts:
+        day = shift.date.day
+        if day not in shifts_by_day:
+            shifts_by_day[day] = []
+        shifts_by_day[day].append(shift)
+
+    # 6. Търсим кой е ДБПК за всеки ден (за да го покажем на календара)
+    # Правим речник: { 21: "Мичман Иванов", 22: "..." }
+    dbpk_by_day = {}
+    for day, day_shifts in shifts_by_day.items():
+        for s in day_shifts:
+            if 'ДБПК' in s.duty_type.name and 'ПДБПК' not in s.duty_type.name:
+                dbpk_by_day[day] = f"{s.soldier.rank_title} {s.soldier.last_name}"
+                break
+
+    month_name = datetime.date(year, month, 1).strftime('%B %Y') # Име на месеца
+
+    context = {
+        'year': year,
+        'month': month,
+        'month_name': month_name,
+        'month_days': month_days,   # Матрицата на календара
+        'shifts_by_day': shifts_by_day, # Всички наряди
+        'dbpk_by_day': dbpk_by_day,     # Само главните (за красота)
+        'prev_year': prev_date.year,
+        'prev_month': prev_date.month,
+        'next_year': next_date.year,
+        'next_month': next_date.month,
+        'today': today,
+    }
+    return render(request, 'roster/home_calendar.html', context)

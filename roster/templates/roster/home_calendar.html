@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+{% load roster_extras %}
+<html lang="bg">
+<head>
+    <meta charset="UTF-8">
+    <title>DUTOS - Календар</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .calendar-day {
+            min-height: 120px; /* Височина на клетката */
+            border: 1px solid #dee2e6;
+            background-color: #fff;
+            transition: 0.2s;
+            position: relative;
+        }
+        .calendar-day:hover {
+            background-color: #f8f9fa;
+            border-color: #0d6efd;
+            z-index: 2;
+            cursor: pointer;
+        }
+        .day-number {
+            font-weight: bold;
+            font-size: 1.2rem;
+            color: #6c757d;
+        }
+        .today {
+            background-color: #e7f1ff !important; /* Светло синьо за днес */
+            border: 2px solid #0d6efd !important;
+        }
+        .has-duty {
+            /* Зелена лента ако има наряд */
+            border-top: 4px solid #198754; 
+        }
+        .empty-day {
+            background-color: #f8f9fa; /* Сиво за дните от друг месец */
+        }
+        a.fill-div {
+            display: block;
+            height: 100%;
+            width: 100%;
+            text-decoration: none;
+            color: inherit;
+        }
+    </style>
+</head>
+<body class="bg-light">
+
+<div class="container mt-4">
+    
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <a href="?month={{ prev_month }}&year={{ prev_year }}" class="btn btn-outline-primary">⬅️ Предишен</a>
+        </div>
+        <h2 class="text-uppercase text-primary mb-0">📅 {{ month_name }}</h2> <div>
+            <a href="?month={{ next_month }}&year={{ next_year }}" class="btn btn-outline-primary">Следващ ➡️</a>
+        </div>
+    </div>
+
+    <div class="text-center mb-4">
+        <a href="{% url 'roster_stats' %}" class="btn btn-dark shadow-sm">📊 Статистика</a>
+        <a href="/admin/" class="btn btn-outline-secondary shadow-sm">⚙️ Админ</a>
+    </div>
+
+    <div class="row text-center fw-bold bg-white py-2 border rounded-top shadow-sm">
+        <div class="col">Пон</div>
+        <div class="col">Вто</div>
+        <div class="col">Сря</div>
+        <div class="col">Чет</div>
+        <div class="col">Пет</div>
+        <div class="col text-danger">Съб</div>
+        <div class="col text-danger">Нед</div>
+    </div>
+
+    {% for week in month_days %}
+    <div class="row row-cols-7 g-0">
+        {% for day in week %}
+            {% if day == 0 %}
+                <div class="col calendar-day empty-day"></div>
+            {% else %}
+                <div class="col calendar-day p-2 
+                            {% if shifts_by_day|get_item:day %}has-duty{% endif %} 
+                            {% if day == today.day and month == today.month and year == today.year %}today{% endif %}">
+                    
+                    <a href="{% url 'roster_daily' %}?date={{ year }}-{{ month|stringformat:'02d' }}-{{ day|stringformat:'02d' }}" class="fill-div">
+                        
+                        <div class="d-flex justify-content-between">
+                            <span class="day-number">{{ day }}</span>
+                            {% if shifts_by_day|get_item:day %}
+                                <span class="badge bg-success">OK</span>
+                            {% else %}
+                                <span class="badge bg-secondary opacity-25">-</span>
+                            {% endif %}
+                        </div>
+
+                        {% if dbpk_by_day|get_item:day %}
+                            <div class="mt-2 text-center">
+                                <span class="badge bg-danger text-wrap" style="font-size: 0.75rem;">
+                                    ⚓ {{ dbpk_by_day|get_item:day }}
+                                </span>
+                            </div>
+                        {% endif %}
+
+                        {% if shifts_by_day|get_item:day %}
+                            <div class="mt-2 text-center text-muted small">
+                                {{ shifts_by_day|get_item:day|length }} наряда
+                            </div>
+                        {% endif %}
+                    </a>
+                </div>
+
+            {% endif %}
+        {% endfor %}
+    </div>
+    {% endfor %}
+    
+    <div class="mt-3 text-center text-muted small">
+        <p>Легенда: <span class="badge bg-success">Зелена лента</span> = Има генериран график | <span class="badge bg-danger">Червено</span> = Дежурен по Батальон</p>
+    </div>
+
+</div>
+
+</body>
+</html>
