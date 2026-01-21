@@ -21,6 +21,42 @@
         padding: 15px;
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
       }
+      /* Стилове само за принтиране */
+        @media print {
+            /* Скрий бутоните, навигацията и формите */
+            .btn, form, .nav-tabs, a[href^="/"], .accordion-button::after {
+                display: none !important;
+            }
+            
+            /* Направи фона бял и текста черен */
+            body, .stats-card, .accordion-item {
+                background-color: white !important;
+                color: black !important;
+                box-shadow: none !important;
+                border: 1px solid #ddd !important;
+            }
+            
+            /* Разпъни всички акордеони автоматично */
+            .collapse {
+                display: block !important;
+                height: auto !important;
+                opacity: 1 !important;
+                visibility: visible !important;
+            }
+            
+            /* Скрий излишни елементи */
+            .accordion-button {
+                pointer-events: none; /* Забрани кликането на хартия :) */
+                padding: 5px 0;
+            }
+
+            /* Заглавие за принта */
+            h2::after {
+                content: " (Генериран от DUTOS)";
+                font-size: 12px;
+                color: #666;
+            }
+        }
     </style>
   </head>
   <body>

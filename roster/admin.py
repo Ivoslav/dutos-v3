@@ -1,42 +1,66 @@
 from django.contrib import admin
-from .models import CourseOrRank, DutyShift, Soldier, DutyType, DutyShift, Leave
+from .models import Soldier, DutyType, DutyShift, Leave
 
+# 1. Тунинг на Войниците
 @admin.register(Soldier)
 class SoldierAdmin(admin.ModelAdmin):
-    list_display = ('faculty_number', 'rank_title', 'last_name', 'first_name', 'company', 'platoon', 'score')
+    # Какво се вижда в списъка (Колони)
+    list_display = ('rank_title', 'last_name', 'faculty_number', 'company', 'platoon', 'score', 'is_active')
     
-    search_fields = ('last_name', 'first_name', 'faculty_number', 'rank_title')
+    # Филтри отдясно (Много полезно!)
+    list_filter = ('company', 'platoon', 'rank_group', 'is_active')
     
-    list_filter = ('rank_group', 'company', 'platoon', 'is_active')
+    # Търсачка (Търси по име и факултетен номер)
+    search_fields = ('last_name', 'faculty_number')
     
-    fieldsets = (
-        ('Лични данни', {
-            'fields': ('first_name', 'last_name', 'faculty_number', 'birth_date')
-        }),
-        ('Служебна информация', {
-            'fields': ('rank_title', 'rank_group', 'company', 'platoon', 'class_section', 'crew')
-        }),
-        ('Статус', {
-            'fields': ('score', 'is_active')
-        }),
-    )
+    # Подреждане по подразбиране
+    ordering = ('rank_group__priority', 'last_name')
+    
+    # Възможност да редактираш точките директно от списъка (без да отваряш профила)
+    list_editable = ('score', 'is_active')
+    
+    # Колко реда да показва на страница
+    list_per_page = 50
 
-admin.site.register(CourseOrRank)
-admin.site.register(DutyType)
+    # Екстра: Масово действие "Нулирай точките" (за начало на месец/година)
+    actions = ['reset_points']
 
+    @admin.action(description='🔄 Нулирай точките на избраните')
+    def reset_points(self, request, queryset):
+        rows_updated = queryset.update(score=0)
+        self.message_user(request, f"Успешно нулирани точките на {rows_updated} души.")
+
+
+# 2. Тунинг на Нарядите
 @admin.register(DutyShift)
 class DutyShiftAdmin(admin.ModelAdmin):
-    list_display = ('date', 'duty_type', 'soldier')
+    list_display = ('date', 'duty_name_colored', 'soldier_info')
     list_filter = ('date', 'duty_type')
-    date_hierarchy = 'date'
+    date_hierarchy = 'date' # Добавя навигация по дати най-горе
 
+    # Показваме името на наряда
+    def duty_name_colored(self, obj):
+        return obj.duty_type.name
+    duty_name_colored.short_description = 'Наряд'
+
+    # Показваме кой го дава
+    def soldier_info(self, obj):
+        return f"{obj.soldier.rank_title} {obj.soldier.last_name}"
+    soldier_info.short_description = 'Военнослужещ'
+
+
+# 3. Тунинг на Отпуските/Болничните
 @admin.register(Leave)
 class LeaveAdmin(admin.ModelAdmin):
-    list_display = ('soldier', 'leave_type', 'start_date', 'end_date', 'duration')
+    list_display = ('soldier', 'leave_type', 'start_date', 'end_date', 'days_count')
     list_filter = ('leave_type', 'start_date')
-    search_fields = ('soldier__last_name', 'soldier__faculty_number')
+    search_fields = ('soldier__last_name',)
     
-    def duration(self, obj):
+    def days_count(self, obj):
         delta = obj.end_date - obj.start_date
-        return f"{delta.days + 1} дни"
-    duration.short_description = "Продължителност"
+        return f"{delta.days} дни"
+    days_count.short_description = 'Продължителност'
+
+
+# 4. Другите модели
+admin.site.register(DutyType)
