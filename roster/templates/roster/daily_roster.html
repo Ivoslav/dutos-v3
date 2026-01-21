@@ -95,153 +95,128 @@
         </div>
 
         <div class="tab-pane fade" id="stats">
-            <div class="row g-3">
+            
+            <div class="accordion" id="reportAccordion">
                 
-                <div class="col-md-4">
-                    <div class="stats-card border-start border-5 border-primary">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <h5 class="text-primary mb-0">1-ва Рота</h5>
-                                <small class="text-muted">ВМС</small>
+                {% for key, group in report.items %}
+                <div class="accordion-item mb-3 border-{{ group.class }} shadow-sm">
+                    
+                    <h2 class="accordion-header" id="heading{{ key }}">
+                        <button class="accordion-button {% if not forloop.first %}collapsed{% endif %}" type="button" 
+                                data-bs-toggle="collapse" data-bs-target="#collapse{{ key }}">
+                            <div class="d-flex w-100 justify-content-between align-items-center me-3">
+                                <span class="fw-bold text-{{ group.class }}">{{ group.name }}</span>
+                                
+                                <div style="font-size: 0.9rem;">
+                                    <span class="badge bg-secondary">По списък: {{ group.total }}</span>
+                                    <span class="badge bg-success">Налице: {{ group.present }}</span>
+                                    {% if group.duty %}<span class="badge bg-dark">Наряд: {{ group.duty|length }}</span>{% endif %}
+                                    {% if group.sick %}<span class="badge bg-danger">Болни: {{ group.sick|length }}</span>{% endif %}
+                                </div>
                             </div>
-                            <div class="text-end">
-                                <div class="fw-bold fs-5">{{ c1_stats.duty }} <span class="text-muted fs-6">наряд</span></div>
-                                <div class="text-danger small">{{ c1_stats.absent }} липсват</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                        </button>
+                    </h2>
 
-                <div class="col-md-4">
-                    <div class="stats-card border-start border-5 border-danger">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <h5 class="text-danger mb-0">2-ра Рота</h5>
-                                <small class="text-muted">Медици</small>
-                            </div>
-                            <div class="text-end">
-                                <div class="fw-bold fs-5">{{ c2_stats.duty }} <span class="text-muted fs-6">наряд</span></div>
-                                <div class="text-danger small">{{ c2_stats.absent }} липсват</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="col-md-4">
-                    <div class="stats-card border-start border-5 border-success">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <h5 class="text-success mb-0">Млади</h5>
-                                <small class="text-muted">1-ви курс</small>
-                            </div>
-                            <div class="text-end">
-                                <div class="fw-bold fs-5">{{ young_stats.duty }} <span class="text-muted fs-6">наряд</span></div>
-                                <div class="text-danger small">{{ young_stats.absent }} липсват</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="col-12 mt-4">
-                    <div class="card shadow-sm border-warning">
-                        <div class="card-header bg-warning bg-opacity-10 text-dark d-flex justify-content-between align-items-center">
-                            <strong>🏥 Строеви разход (Отсъстващи)</strong>
-                            <span class="badge bg-dark">{{ absent_count }} човека</span>
-                        </div>
-                        <div class="card-body p-0">
-                            {% if absentees %}
-                            <table class="table table-hover mb-0 align-middle">
+                    <div id="collapse{{ key }}" class="accordion-collapse collapse {% if forloop.first %}show{% endif %}" 
+                         data-bs-parent="#reportAccordion">
+                        <div class="accordion-body">
+                            
+                            <table class="table table-bordered table-sm text-center mb-4">
                                 <thead class="table-light">
                                     <tr>
-                                        <th>Рота</th> <th>Име и Звание</th>
-                                        <th>Причина</th>
-                                        <th>Период</th>
-                                        <th class="text-end">Остават</th> </tr>
+                                        <th>По списък</th>
+                                        <th class="text-success">Налице</th>
+                                        <th class="table-active">Наряд</th>
+                                        <th class="text-danger">Болни</th>
+                                        <th class="text-warning">ДО</th>
+                                        <th class="text-primary">Ком.</th>
+                                        <th>Други</th>
+                                    </tr>
                                 </thead>
-                                <tbody>
-                                {% for leave in absentees %}
+                                <tbody class="fw-bold fs-5">
                                     <tr>
-                                        <td>
-                                            {% if leave.soldier.platoon == 'Млади' %}
-                                                <span class="badge bg-success">М</span>
-                                            {% elif leave.soldier.company == '1' %}
-                                                <span class="badge bg-primary">1Р</span>
-                                            {% else %}
-                                                <span class="badge bg-danger">2Р</span>
-                                            {% endif %}
-                                        </td>
-                                        
-                                        <td>
-                                            <span class="fw-bold">{{ leave.soldier.rank_title }} {{ leave.soldier.last_name }}</span>
-                                            <div class="small text-muted" style="font-size: 0.75rem;">
-                                                {{ leave.soldier.faculty_number }} (Взв. {{ leave.soldier.platoon }})
-                                            </div>
-                                        </td>
-
-                                        <td>
-                                            {% if leave.leave_type == 'sick' %}
-                                                <span class="text-danger fw-bold">🤒 Болничен</span>
-                                            {% elif leave.leave_type == 'home' %}
-                                                <span class="text-warning fw-bold text-dark">🏠 Отпуск</span>
-                                            {% elif leave.leave_type == 'mission' %}
-                                                <span class="text-primary fw-bold">✈️ Командировка</span>
-                                            {% else %}
-                                                {{ leave.get_leave_type_display }}
-                                            {% endif %}
-                                            
-                                            {% if leave.reason %}
-                                                <br><small class="text-muted">"{{ leave.reason }}"</small>
-                                            {% endif %}
-                                        </td>
-
-                                        <td>
-                                            {{ leave.start_date|date:"d.m" }} — {{ leave.end_date|date:"d.m" }}
-                                        </td>
-
-                                        <td class="text-end">
-                                            {% if leave.days_left == 0 %}
-                                                <span class="badge bg-success">Последен ден</span>
-                                            {% else %}
-                                                <span class="fw-bold">{{ leave.days_left }}</span> дни
-                                            {% endif %}
-                                        </td>
+                                        <td>{{ group.total }}</td>
+                                        <td class="text-success">{{ group.present }}</td>
+                                        <td>{{ group.duty|length }}</td>
+                                        <td class="text-danger">{{ group.sick|length }}</td>
+                                        <td class="text-warning">{{ group.home|length }}</td>
+                                        <td class="text-primary">{{ group.mission|length }}</td>
+                                        <td>{{ group.other|length }}</td>
                                     </tr>
-                                {% endfor %}
                                 </tbody>
                             </table>
-                            {% else %}
-                                <div class="p-3 text-center text-muted">
-                                    ✅ Всички са налице!
+
+                            <div class="row g-3">
+                                
+                                {% if group.duty %}
+                                <div class="col-md-6">
+                                    <div class="card h-100 border-secondary">
+                                        <div class="card-header bg-secondary text-white py-1">💂 Наряд ({{ group.duty|length }})</div>
+                                        <ul class="list-group list-group-flush small">
+                                            {% for s in group.duty %}
+                                            <li class="list-group-item d-flex justify-content-between">
+                                                <span>{{ s.soldier.last_name }}</span>
+                                                <strong>{{ s.duty_type.name }}</strong>
+                                            </li>
+                                            {% endfor %}
+                                        </ul>
+                                    </div>
                                 </div>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
+                                {% endif %}
 
-                <div class="col-12">
-                    <div class="card shadow-sm">
-                        <div class="card-header bg-light"><strong>📍 Разпределение на нарядите</strong></div>
-                        <div class="card-body">
-                            <table class="table table-sm table-striped mb-0">
-                                <thead><tr><th>Взвод</th><th class="text-end">Наряд</th></tr></thead>
-                                <tbody>
-                                    {% for item in platoon_stats %}
-                                    <tr>
-                                        <td>
-                                            {% if item.soldier__platoon == 'Млади' %}
-                                                👶 Млади курсанти
-                                            {% else %}
-                                                Взвод {{ item.soldier__platoon }}
-                                            {% endif %}
-                                        </td>
-                                        <td class="text-end fw-bold">{{ item.count }}</td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
+                                {% if group.sick %}
+                                <div class="col-md-6">
+                                    <div class="card h-100 border-danger">
+                                        <div class="card-header bg-danger text-white py-1">🤒 Болни / Лазарет ({{ group.sick|length }})</div>
+                                        <ul class="list-group list-group-flush small">
+                                            {% for l in group.sick %}
+                                            <li class="list-group-item">
+                                                <strong>{{ l.soldier.last_name }}</strong> 
+                                                <span class="text-muted fst-italic">- {{ l.reason|default:"Болест" }}</span>
+                                                <span class="float-end">{{ l.end_date|date:"d.m" }}</span>
+                                            </li>
+                                            {% endfor %}
+                                        </ul>
+                                    </div>
+                                </div>
+                                {% endif %}
+
+                                {% if group.home %}
+                                <div class="col-md-6">
+                                    <div class="card h-100 border-warning">
+                                        <div class="card-header bg-warning text-dark py-1">🏠 Домашен отпуск ({{ group.home|length }})</div>
+                                        <ul class="list-group list-group-flush small">
+                                            {% for l in group.home %}
+                                            <li class="list-group-item">
+                                                <strong>{{ l.soldier.last_name }}</strong>
+                                                <span class="float-end">до {{ l.end_date|date:"d.m" }}</span>
+                                            </li>
+                                            {% endfor %}
+                                        </ul>
+                                    </div>
+                                </div>
+                                {% endif %}
+
+                                {% if group.mission %}
+                                <div class="col-md-6">
+                                    <div class="card h-100 border-primary">
+                                        <div class="card-header bg-primary text-white py-1">✈️ Командировка ({{ group.mission|length }})</div>
+                                        <ul class="list-group list-group-flush small">
+                                            {% for l in group.mission %}
+                                            <li class="list-group-item">
+                                                <strong>{{ l.soldier.last_name }}</strong>
+                                                <span class="float-end">{{ l.end_date|date:"d.m" }}</span>
+                                            </li>
+                                            {% endfor %}
+                                        </ul>
+                                    </div>
+                                </div>
+                                {% endif %}
+
+                            </div> </div>
                     </div>
                 </div>
+                {% endfor %}
 
             </div>
         </div>

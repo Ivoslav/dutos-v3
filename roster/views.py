@@ -9,7 +9,7 @@ import datetime
 
 # --- ФУНКЦИЯ 1: ГРАФИК (Това ти липсваше) ---
 def roster_view(request):
-    # ... (стандартното начало за датата) ...
+    # 1. Дата
     date_str = request.GET.get('date')
     if date_str:
         try:
@@ -19,58 +19,63 @@ def roster_view(request):
     else:
         selected_date = datetime.date.today()
 
-    # 1. Наряди (Хората в строя)
-    shifts = DutyShift.objects.filter(date=selected_date).order_by(
+    # 2. НАРЯДИ - ТУК Е ПОПРАВКАТА (order_by)
+    shifts = DutyShift.objects.filter(date=selected_date).select_related('soldier', 'duty_type').order_by(
         '-soldier__rank_group__priority', 
         '-duty_type__weight'
     )
 
-    # 2. Отсъстващи (Хората извън строя)
-    absentees = Leave.objects.filter(
-        start_date__lte=selected_date, 
-        end_date__gte=selected_date
-    ).select_related('soldier').order_by('leave_type', 'soldier__last_name')
-
-    # --- НОВО: Изчисляваме дните и броим по роти ---
-    absent_c1 = 0
-    absent_c2 = 0
-    absent_young = 0
-
-    # Обработваме списъка, за да добавим полезна инфо
-    for leave in absentees:
-        # Изчисляваме оставащи дни (чисто число)
-        delta = leave.end_date - selected_date
-        leave.days_left = delta.days 
-        
-        # Броим ги
-        if leave.soldier.platoon == 'Млади':
-            absent_young += 1
-        elif leave.soldier.company == '1':
-            absent_c1 += 1
-        elif leave.soldier.company == '2':
-            absent_c2 += 1
-
-    # 3. Статистика за НАРЯДИТЕ (както преди)
-    platoon_stats = shifts.values('soldier__platoon').annotate(count=Count('id')).order_by('soldier__platoon')
+    # 3. Отпуски
+    leaves = list(Leave.objects.filter(start_date__lte=selected_date, end_date__gte=selected_date).select_related('soldier'))
     
-    duty_c1 = shifts.filter(soldier__company='1').count()
-    duty_c2 = shifts.filter(soldier__company='2').count()
-    duty_young = shifts.filter(soldier__platoon='Млади').count()
+    # 4. Всички войници (за статистиката)
+    all_soldiers = Soldier.objects.filter(is_active=True).order_by('rank_group__priority', 'last_name')
+
+    # 5. Генериране на Строевата Записка (Report)
+    report = {
+        '1': {'name': '1-ва Рота (ВМС)', 'class': 'primary', 'total': 0, 'present': 0, 'duty': [], 'sick': [], 'home': [], 'mission': [], 'other': []},
+        '2': {'name': '2-ра Рота (Медици)', 'class': 'danger', 'total': 0, 'present': 0, 'duty': [], 'sick': [], 'home': [], 'mission': [], 'other': []},
+        'young': {'name': 'Млади Курсанти', 'class': 'success', 'total': 0, 'present': 0, 'duty': [], 'sick': [], 'home': [], 'mission': [], 'other': []}
+    }
+
+    # Помощни мапове за бързодействие
+    shift_map = {s.soldier_id: s for s in shifts}
+    leave_map = {l.soldier_id: l for l in leaves}
+
+    for s in all_soldiers:
+        # Определяме групата
+        if s.platoon == 'Млади':
+            group_key = 'young'
+        elif s.company == '1':
+            group_key = '1'
+        elif s.company == '2':
+            group_key = '2'
+        else:
+            continue
+
+        report[group_key]['total'] += 1
+        
+        # Проверяваме статуса
+        if s.id in leave_map:
+            l = leave_map[s.id]
+            if l.leave_type == 'sick': report[group_key]['sick'].append(l)
+            elif l.leave_type == 'home': report[group_key]['home'].append(l)
+            elif l.leave_type == 'mission': report[group_key]['mission'].append(l)
+            else: report[group_key]['other'].append(l)
+        
+        elif s.id in shift_map:
+            sh = shift_map[s.id]
+            report[group_key]['duty'].append(sh)
+            
+        else:
+            report[group_key]['present'] += 1
 
     context = {
         'selected_date': selected_date,
-        'shifts': shifts,
-        'platoon_stats': platoon_stats,
-        
-        # Пращаме разбивката: Наряд / Отсъстващи
-        'c1_stats': {'duty': duty_c1, 'absent': absent_c1},
-        'c2_stats': {'duty': duty_c2, 'absent': absent_c2},
-        'young_stats': {'duty': duty_young, 'absent': absent_young},
-        
-        'absent_count': absentees.count(),
-        'absentees': absentees,
+        'shifts': shifts,     # Вече е сортирано правилно
+        'report': report,
         'total_on_duty': shifts.count(),
-        'all_soldiers': Soldier.objects.filter(is_active=True).order_by('last_name')
+        'all_soldiers': all_soldiers
     }
     return render(request, 'roster/daily_roster.html', context)
 
