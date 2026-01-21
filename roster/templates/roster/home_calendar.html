@@ -67,13 +67,14 @@
       </div>
 
       <div class="text-center mb-4">
-        <a href="{% url 'roster_stats' %}" class="btn btn-dark shadow-sm"
-          >📊 Статистика</a
-        >
-        <a href="/admin/" class="btn btn-outline-secondary shadow-sm"
-          >⚙️ Админ</a
-        >
-      </div>
+        <a href="{% url 'roster_stats' %}" class="btn btn-dark shadow-sm">📊 Статистика</a>
+        
+        <a href="/admin/roster/leave/add/" class="btn btn-warning shadow-sm text-dark">
+            🏥 +Болничен/Отпуск
+        </a>
+
+        <a href="/admin/" class="btn btn-outline-secondary shadow-sm">⚙️ Админ</a>
+    </div>
 
       <div
         class="row text-center fw-bold bg-white py-2 border rounded-top shadow-sm"
