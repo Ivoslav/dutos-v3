@@ -129,24 +129,19 @@ def soldier_profile(request, soldier_id):
     return render(request, 'roster/modal_profile.html', context)
 
 def home_calendar(request):
-    # 1. Определяме година и месец (от URL или текущи)
     today = datetime.date.today()
     year = int(request.GET.get('year', today.year))
     month = int(request.GET.get('month', today.month))
 
-    # 2. Изчисляваме Предишен и Следващ месец (за бутоните)
     prev_date = datetime.date(year, month, 1) - timedelta(days=1)
     next_date = datetime.date(year, month, 1) + timedelta(days=32)
     next_date = next_date.replace(day=1)
 
-    # 3. Взимаме матрицата на месеца (Списък от седмици, където 0 е празен ден)
-    cal = calendar.Calendar(firstweekday=0) # 0 = Понеделник
+    cal = calendar.Calendar(firstweekday=0)
     month_days = cal.monthdayscalendar(year, month)
 
-    # 4. Взимаме всички наряди за този месец
     shifts = DutyShift.objects.filter(date__year=year, date__month=month)
 
-    # 5. Групираме нарядите по дни: { 21: [Shift1, Shift2...], 22: [...] }
     shifts_by_day = {}
     for shift in shifts:
         day = shift.date.day
@@ -154,24 +149,37 @@ def home_calendar(request):
             shifts_by_day[day] = []
         shifts_by_day[day].append(shift)
 
-    # 6. Търсим кой е ДБПК за всеки ден (за да го покажем на календара)
-    # Правим речник: { 21: "Мичман Иванов", 22: "..." }
-    dbpk_by_day = {}
+    # --- НОВА ЛОГИКА: Броим разхода по роти ---
+    # Резултатът ще е: { 21: {'c1': 5, 'c2': 3}, 22: ... }
+    stats_by_day = {}
+    
     for day, day_shifts in shifts_by_day.items():
+        count_c1 = 0
+        count_c2 = 0
+        count_young = 0
         for s in day_shifts:
-            if 'ДБПК' in s.duty_type.name and 'ПДБПК' not in s.duty_type.name:
-                dbpk_by_day[day] = f"{s.soldier.rank_title} {s.soldier.last_name}"
-                break
-
-    month_name = datetime.date(year, month, 1).strftime('%B %Y') # Име на месеца
+            if s.soldier.platoon == 'Млади':
+                count_young += 1
+            elif s.soldier.company == '1':
+                count_c1 += 1
+            elif s.soldier.company == '2':
+                count_c2 += 1
+        
+        stats_by_day[day] = {
+                    'c1': count_c1, 
+                    'c2': count_c2, 
+                    'young': count_young
+                }
+        
+    month_name = datetime.date(year, month, 1).strftime('%B %Y')
 
     context = {
         'year': year,
         'month': month,
         'month_name': month_name,
-        'month_days': month_days,   # Матрицата на календара
-        'shifts_by_day': shifts_by_day, # Всички наряди
-        'dbpk_by_day': dbpk_by_day,     # Само главните (за красота)
+        'month_days': month_days,
+        'shifts_by_day': shifts_by_day,
+        'stats_by_day': stats_by_day, # <--- Пращаме новата статистика
         'prev_year': prev_date.year,
         'prev_month': prev_date.month,
         'next_year': next_date.year,

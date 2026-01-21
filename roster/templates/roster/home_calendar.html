@@ -93,17 +93,37 @@
                             {% endif %}
                         </div>
 
-                        {% if dbpk_by_day|get_item:day %}
-                            <div class="mt-2 text-center">
-                                <span class="badge bg-danger text-wrap" style="font-size: 0.75rem;">
-                                    ⚓ {{ dbpk_by_day|get_item:day }}
-                                </span>
-                            </div>
-                        {% endif %}
+                        {% with stats=stats_by_day|get_item:day %}
+                            {% if stats %}
+                                <div class="mt-2 d-flex justify-content-center gap-1" style="flex-wrap: wrap;">
+                                    
+                                    {% if stats.c1 > 0 %}
+                                    <span class="badge bg-primary border border-light shadow-sm" title="1-ва Рота (Стари)">
+                                        1Р: {{ stats.c1 }}
+                                    </span>
+                                    {% endif %}
+                                    
+                                    {% if stats.c2 > 0 %}
+                                    <span class="badge bg-danger border border-light shadow-sm" title="2-ра Рота (Стари)">
+                                        2Р: {{ stats.c2 }}
+                                    </span>
+                                    {% endif %}
+
+                                    {% if stats.young > 0 %}
+                                    <span class="badge bg-success border border-light shadow-sm" title="Млади курсанти">
+                                        М: {{ stats.young }}
+                                    </span>
+                                    {% endif %}
+
+                                </div>
+                            {% else %}
+                                <div class="mt-2" style="min-height: 22px;"></div>
+                            {% endif %}
+                        {% endwith %}
 
                         {% if shifts_by_day|get_item:day %}
                             <div class="mt-2 text-center text-muted small">
-                                {{ shifts_by_day|get_item:day|length }} наряда
+                                {{ shifts_by_day|get_item:day|length }} наряд
                             </div>
                         {% endif %}
                     </a>
