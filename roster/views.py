@@ -65,13 +65,9 @@ def soldier_profile(request, soldier_id):
     soldier = get_object_or_404(Soldier, id=soldier_id)
     today = datetime.date.today()
 
-    # 1. Разделяме нарядите
-    # Предстоящи (вкл. днес)
+    # 1. Списъци за визуализация
     upcoming_shifts = DutyShift.objects.filter(soldier=soldier, date__gte=today).order_by('date')
-    # Минали
     past_shifts = DutyShift.objects.filter(soldier=soldier, date__lt=today).order_by('-date')
-
-    # История на отпуските
     leaves = Leave.objects.filter(soldier=soldier).order_by('-start_date')
 
     form = DutyShiftForm(request.POST or None)
@@ -80,28 +76,52 @@ def soldier_profile(request, soldier_id):
         if form.is_valid():
             new_date = form.cleaned_data['date']
             
-            # 2. ВАЛИДАЦИЯ: Проверка за отпуск
+            # --- ПРОВЕРКА 1: ОТПУСК ---
             on_leave = Leave.objects.filter(
                 soldier=soldier,
                 start_date__lte=new_date,
                 end_date__gte=new_date
             ).exists()
 
+            # --- ПРОВЕРКА 2: ДУБЛИРАНЕ (Вече има наряд днес?) ---
+            has_shift_today = DutyShift.objects.filter(
+                soldier=soldier, 
+                date=new_date
+            ).exists()
+
+            # --- ПРОВЕРКА 3: УМОРА (Бил ли е наряд вчера?) ---
+            yesterday = new_date - timedelta(days=1)
+            has_shift_yesterday = DutyShift.objects.filter(
+                soldier=soldier, 
+                date=yesterday
+            ).exists()
+
+            # --- ЛОГИКА ЗА СПИРАНЕ ---
             if on_leave:
-                # Връщаме грешка към формата, не записваме!
                 form.add_error('date', '⛔ Грешка: Войникът е в отпуск на тази дата!')
+            
+            elif has_shift_today:
+                form.add_error('date', '⛔ Грешка: Вече има назначен наряд за този ден!')
+                
+            elif has_shift_yesterday:
+                form.add_error('date', '⛔ Грешка: Войникът е уморен (наряд вчера)!')
+
             else:
+                # Всичко е чисто -> Записваме!
                 shift = form.save(commit=False)
                 shift.soldier = soldier
                 shift.save()
+                
                 soldier.score += shift.duty_type.weight
                 soldier.save()
+                
+                # Ако заявката е AJAX (от поп-ъпа), ще върне redirect, който JS ще хване
                 return redirect('roster_stats')
 
     context = {
         'soldier': soldier,
-        'upcoming_shifts': upcoming_shifts, # <--- Нова променлива
-        'past_shifts': past_shifts,         # <--- Нова променлива
+        'upcoming_shifts': upcoming_shifts,
+        'past_shifts': past_shifts,
         'leaves': leaves,
         'form': form,
     }
