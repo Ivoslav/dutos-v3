@@ -1,5 +1,6 @@
 from django.shortcuts import render, get_object_or_404, redirect
-from .models import DutyShift, DutyType, Soldier # <--- Важно: Трябва да импортнем и Soldier!
+from datetime import timedelta # <--- ВАЖНО: Добави това!
+from .models import DutyShift, DutyType, Soldier, Leave # <--- Важно: Трябва да импортнем и Soldier!
 from .forms import DutyShiftForm
 import datetime
 
@@ -62,31 +63,46 @@ def statistics_view(request):
 
 def soldier_profile(request, soldier_id):
     soldier = get_object_or_404(Soldier, id=soldier_id)
-    
-    # 1. История на нарядите (Последните първи)
-    history = DutyShift.objects.filter(soldier=soldier).order_by('-date')
+    today = datetime.date.today()
 
-    # 2. Обработка на формата за НОВ наряд
+    # 1. Разделяме нарядите
+    # Предстоящи (вкл. днес)
+    upcoming_shifts = DutyShift.objects.filter(soldier=soldier, date__gte=today).order_by('date')
+    # Минали
+    past_shifts = DutyShift.objects.filter(soldier=soldier, date__lt=today).order_by('-date')
+
+    # История на отпуските
+    leaves = Leave.objects.filter(soldier=soldier).order_by('-start_date')
+
+    form = DutyShiftForm(request.POST or None)
+
     if request.method == 'POST':
-        form = DutyShiftForm(request.POST)
         if form.is_valid():
-            shift = form.save(commit=False)
-            shift.soldier = soldier # Слагаме войника автоматично
-            shift.save()
+            new_date = form.cleaned_data['date']
             
-            # Добавяме точките веднага
-            soldier.score += shift.duty_type.weight
-            soldier.save()
-            
-            # Връщаме се на статистиката
-            return redirect('roster_stats')
-    else:
-        form = DutyShiftForm()
+            # 2. ВАЛИДАЦИЯ: Проверка за отпуск
+            on_leave = Leave.objects.filter(
+                soldier=soldier,
+                start_date__lte=new_date,
+                end_date__gte=new_date
+            ).exists()
+
+            if on_leave:
+                # Връщаме грешка към формата, не записваме!
+                form.add_error('date', '⛔ Грешка: Войникът е в отпуск на тази дата!')
+            else:
+                shift = form.save(commit=False)
+                shift.soldier = soldier
+                shift.save()
+                soldier.score += shift.duty_type.weight
+                soldier.save()
+                return redirect('roster_stats')
 
     context = {
         'soldier': soldier,
-        'history': history,
+        'upcoming_shifts': upcoming_shifts, # <--- Нова променлива
+        'past_shifts': past_shifts,         # <--- Нова променлива
+        'leaves': leaves,
         'form': form,
     }
-    # Връщаме само парче HTML, не цяла страница!
     return render(request, 'roster/modal_profile.html', context)
