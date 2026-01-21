@@ -2,83 +2,84 @@
 <html lang="bg">
 <head>
     <meta charset="UTF-8">
-    <title>DUTOS - График</title>
+    <title>Оперативно Табло</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        body { background-color: #f8f9fa; }
-        .duty-card { border-left: 5px solid #0d6efd; transition: transform 0.2s; }
-        .duty-card:hover { transform: translateX(5px); background-color: #fff; }
-        /* Цветове за баджовете на курсовете */
-        .bg-c5 { background-color: #2c3e50; color: white; } /* 5-ти */
-        .bg-c4 { background-color: #e67e22; color: white; } /* 4-ти */
-        .bg-c3 { background-color: #27ae60; color: white; } /* 3-ти */
-        .bg-c2 { background-color: #2980b9; color: white; } /* 2-ри */
-        .bg-c1 { background-color: #8e44ad; color: white; } /* 1-ви */
+        body { background-color: #f0f2f5; }
+        .nav-tabs .nav-link.active { font-weight: bold; border-top: 3px solid #0d6efd; }
+        .stats-card { background: white; border-radius: 10px; padding: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
     </style>
 </head>
 <body>
 
-<div class="container mt-5 mb-5">
-    <div class="row mb-4">
-        <div class="col text-center">
-            <h1 class="display-6">📅 Дневен График</h1>
-            <div class="mb-3">
-                <a href="/roster/stats/" class="btn btn-outline-info btn-sm">📊 Към Статистика</a>
-                <a href="/admin/" class="btn btn-outline-dark btn-sm">⚙️ Админ</a>
-            </div>
-            
-            <form method="get" class="d-flex justify-content-center mt-3">
-                <input type="date" name="date" class="form-control w-auto me-2 shadow-sm" value="{{ selected_date|date:'Y-m-d' }}">
-                <button type="submit" class="btn btn-primary shadow-sm">Виж дата</button>
+<div class="container mt-4 mb-5">
+    
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <a href="/roster/" class="btn btn-outline-secondary">⬅️ Календар</a>
+        <h2 class="text-primary mb-0">📅 {{ selected_date|date:"d.m.Y" }} <span class="text-muted">({{ selected_date|date:"l" }})</span></h2>
+        <div>
+            <form method="get" class="d-flex">
+                <input type="date" name="date" class="form-control form-control-sm me-2" value="{{ selected_date|date:'Y-m-d' }}">
+                <button type="submit" class="btn btn-sm btn-primary">Go</button>
             </form>
         </div>
     </div>
 
-    <div class="row justify-content-center">
-        <div class="col-md-9">
-            <h3 class="text-center mb-4 text-primary">{{ selected_date|date:"d.m.Y" }} ({{ selected_date|date:"l" }})</h3>
-            
-            {% if shifts %}
-                
-                {% regroup shifts by soldier.rank_group as course_groups %}
+    <ul class="nav nav-tabs mb-3" id="dailyTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="roster-tab" data-bs-toggle="tab" data-bs-target="#roster" type="button">
+                📋 Дежурна служба <span class="badge bg-primary rounded-pill ms-1">{{ total_on_duty }}</span>
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="stats-tab" data-bs-toggle="tab" data-bs-target="#stats" type="button">
+                📊 Разход / Статистика
+            </button>
+        </li>
+    </ul>
 
+    <div class="tab-content" id="dailyTabsContent">
+        
+        <div class="tab-pane fade show active" id="roster">
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-success">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+
+            {% if shifts %}
+                {% regroup shifts by soldier.rank_group as course_groups %}
                 <div class="accordion" id="rosterAccordion">
                 {% for group in course_groups %}
-                    <div class="accordion-item mb-3 border shadow-sm" style="border-radius: 8px; overflow: hidden;">
-                        
-                        <h2 class="accordion-header" id="heading{{ forloop.counter }}">
-                            <button class="accordion-button {% if not forloop.first %}collapsed{% endif %}" type="button" 
-                                    data-bs-toggle="collapse" data-bs-target="#collapse{{ forloop.counter }}" 
-                                    aria-expanded="{% if forloop.first %}true{% else %}false{% endif %}" 
-                                    aria-controls="collapse{{ forloop.counter }}">
+                    <div class="accordion-item mb-2 shadow-sm">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ forloop.counter }}">
                                 <strong>{{ group.grouper }}</strong>
-                                <span class="badge bg-secondary ms-2">{{ group.list|length }} наряда</span>
                             </button>
                         </h2>
-
-                        <div id="collapse{{ forloop.counter }}" class="accordion-collapse collapse {% if forloop.first %}show{% endif %}" 
-                             aria-labelledby="heading{{ forloop.counter }}" data-bs-parent="#rosterAccordion">
+                        <div id="collapse{{ forloop.counter }}" class="accordion-collapse collapse show">
                             <div class="accordion-body p-0">
                                 <div class="list-group list-group-flush">
                                 {% for shift in group.list %}
-                                    <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-center p-3">
+                                    <div class="list-group-item d-flex justify-content-between align-items-center">
                                         
-                                        <div>
-                                            <h5 class="mb-1 text-primary">{{ shift.duty_type.name }}</h5>
-                                            <small class="text-muted">Тежест: <strong>{{ shift.duty_type.weight }}</strong> т.</small>
+                                        <div class="d-flex align-items-center">
+                                            <div class="me-3 text-center" style="min-width: 80px;">
+                                                <div class="fw-bold text-primary">{{ shift.duty_type.name }}</div>
+                                                <small class="text-muted">{{ shift.duty_type.weight }} т.</small>
+                                            </div>
+                                            <div>
+                                                <span class="fw-bold">{{ shift.soldier.rank_title }} {{ shift.soldier.last_name }}</span>
+                                                <div class="small text-muted">{{ shift.soldier.faculty_number }} | {{ shift.soldier.platoon }} взв.</div>
+                                            </div>
                                         </div>
 
-                                        <div class="text-end">
-                                            <a href="#" class="text-decoration-none text-dark open-profile" 
-                                               data-url="{% url 'soldier_profile' shift.soldier.id %}">
-                                                <span class="badge bg-light text-dark border">{{ shift.soldier.rank_title }}</span>
-                                                <strong class="fs-5">{{ shift.soldier.last_name }}</strong>
-                                            </a>
-                                            <br>
-                                            <small class="text-muted" style="font-size: 0.8rem;">
-                                                {{ shift.soldier.faculty_number }} | {{ shift.soldier.platoon }} взв.
-                                            </small>
-                                        </div>
+                                        <button class="btn btn-outline-danger btn-sm" 
+                                                data-bs-toggle="modal" 
+                                                data-bs-target="#swapModal"
+                                                onclick="setupSwap('{{ shift.id }}', '{{ shift.soldier.last_name }}', '{{ shift.duty_type.name }}')">
+                                            🔄 Смяна
+                                        </button>
 
                                     </div>
                                 {% endfor %}
@@ -88,50 +89,215 @@
                     </div>
                 {% endfor %}
                 </div>
-
             {% else %}
-                <div class="alert alert-warning text-center shadow-sm p-5">
-                    <h4>📭 Няма наряди за тази дата</h4>
-                    <p>Използвай генератора в терминала, за да създадеш график.</p>
-                </div>
+                <div class="alert alert-warning text-center p-5">📭 Няма генериран график за днес.</div>
             {% endif %}
         </div>
-    </div>
-</div>
 
-<div class="modal fade" id="soldierModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-body text-center p-5">
-                <div class="spinner-border text-primary" role="status"></div>
-                <p>Зареждане на досие...</p>
+        <div class="tab-pane fade" id="stats">
+            <div class="row g-3">
+                
+                <div class="col-md-4">
+                    <div class="stats-card border-start border-5 border-primary">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h5 class="text-primary mb-0">1-ва Рота</h5>
+                                <small class="text-muted">ВМС</small>
+                            </div>
+                            <div class="text-end">
+                                <div class="fw-bold fs-5">{{ c1_stats.duty }} <span class="text-muted fs-6">наряд</span></div>
+                                <div class="text-danger small">{{ c1_stats.absent }} липсват</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="stats-card border-start border-5 border-danger">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h5 class="text-danger mb-0">2-ра Рота</h5>
+                                <small class="text-muted">Медици</small>
+                            </div>
+                            <div class="text-end">
+                                <div class="fw-bold fs-5">{{ c2_stats.duty }} <span class="text-muted fs-6">наряд</span></div>
+                                <div class="text-danger small">{{ c2_stats.absent }} липсват</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="stats-card border-start border-5 border-success">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h5 class="text-success mb-0">Млади</h5>
+                                <small class="text-muted">1-ви курс</small>
+                            </div>
+                            <div class="text-end">
+                                <div class="fw-bold fs-5">{{ young_stats.duty }} <span class="text-muted fs-6">наряд</span></div>
+                                <div class="text-danger small">{{ young_stats.absent }} липсват</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-12 mt-4">
+                    <div class="card shadow-sm border-warning">
+                        <div class="card-header bg-warning bg-opacity-10 text-dark d-flex justify-content-between align-items-center">
+                            <strong>🏥 Строеви разход (Отсъстващи)</strong>
+                            <span class="badge bg-dark">{{ absent_count }} човека</span>
+                        </div>
+                        <div class="card-body p-0">
+                            {% if absentees %}
+                            <table class="table table-hover mb-0 align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Рота</th> <th>Име и Звание</th>
+                                        <th>Причина</th>
+                                        <th>Период</th>
+                                        <th class="text-end">Остават</th> </tr>
+                                </thead>
+                                <tbody>
+                                {% for leave in absentees %}
+                                    <tr>
+                                        <td>
+                                            {% if leave.soldier.platoon == 'Млади' %}
+                                                <span class="badge bg-success">М</span>
+                                            {% elif leave.soldier.company == '1' %}
+                                                <span class="badge bg-primary">1Р</span>
+                                            {% else %}
+                                                <span class="badge bg-danger">2Р</span>
+                                            {% endif %}
+                                        </td>
+                                        
+                                        <td>
+                                            <span class="fw-bold">{{ leave.soldier.rank_title }} {{ leave.soldier.last_name }}</span>
+                                            <div class="small text-muted" style="font-size: 0.75rem;">
+                                                {{ leave.soldier.faculty_number }} (Взв. {{ leave.soldier.platoon }})
+                                            </div>
+                                        </td>
+
+                                        <td>
+                                            {% if leave.leave_type == 'sick' %}
+                                                <span class="text-danger fw-bold">🤒 Болничен</span>
+                                            {% elif leave.leave_type == 'home' %}
+                                                <span class="text-warning fw-bold text-dark">🏠 Отпуск</span>
+                                            {% elif leave.leave_type == 'mission' %}
+                                                <span class="text-primary fw-bold">✈️ Командировка</span>
+                                            {% else %}
+                                                {{ leave.get_leave_type_display }}
+                                            {% endif %}
+                                            
+                                            {% if leave.reason %}
+                                                <br><small class="text-muted">"{{ leave.reason }}"</small>
+                                            {% endif %}
+                                        </td>
+
+                                        <td>
+                                            {{ leave.start_date|date:"d.m" }} — {{ leave.end_date|date:"d.m" }}
+                                        </td>
+
+                                        <td class="text-end">
+                                            {% if leave.days_left == 0 %}
+                                                <span class="badge bg-success">Последен ден</span>
+                                            {% else %}
+                                                <span class="fw-bold">{{ leave.days_left }}</span> дни
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                                </tbody>
+                            </table>
+                            {% else %}
+                                <div class="p-3 text-center text-muted">
+                                    ✅ Всички са налице!
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-12">
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-light"><strong>📍 Разпределение на нарядите</strong></div>
+                        <div class="card-body">
+                            <table class="table table-sm table-striped mb-0">
+                                <thead><tr><th>Взвод</th><th class="text-end">Наряд</th></tr></thead>
+                                <tbody>
+                                    {% for item in platoon_stats %}
+                                    <tr>
+                                        <td>
+                                            {% if item.soldier__platoon == 'Млади' %}
+                                                👶 Млади курсанти
+                                            {% else %}
+                                                Взвод {{ item.soldier__platoon }}
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-end fw-bold">{{ item.count }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
             </div>
         </div>
     </div>
 </div>
 
+<div class="modal fade" id="swapModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">🚨 Смяна по спешност</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" id="swapForm" action="">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <p>Смяна на: <strong id="swapTargetName">...</strong></p>
+                    <p>Наряд: <strong id="swapTargetDuty">...</strong></p>
+                    <hr>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Избери заместник:</label>
+                        <select name="new_soldier" class="form-select" required size="5">
+                            {% for s in all_soldiers %}
+                                <option value="{{ s.id }}">
+                                    {{ s.last_name }} ({{ s.rank_title }}) - {{ s.faculty_number }} [{{ s.score }} т.]
+                                </option>
+                            {% endfor %}
+                        </select>
+                        <small class="text-muted">Точките ще бъдат прехвърлени автоматично.</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Причина (Опционално):</label>
+                        <input type="text" name="reason" class="form-control" placeholder="Напр. Внезапно разболяване">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отказ</button>
+                    <button type="submit" class="btn btn-danger">Извърши смяна</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-
 <script>
-    document.addEventListener("DOMContentLoaded", function() {
-        var soldierModal = document.getElementById('soldierModal');
-        var modalContent = soldierModal.querySelector('.modal-content');
-        var bsModal = new bootstrap.Modal(soldierModal);
-
-        document.body.addEventListener('click', function(e) {
-            var target = e.target.closest('.open-profile');
-            if (target) {
-                e.preventDefault();
-                var url = target.getAttribute('data-url');
-                bsModal.show();
-                
-                fetch(url)
-                    .then(response => response.text())
-                    .then(html => { modalContent.innerHTML = html; })
-                    .catch(err => { modalContent.innerHTML = '<div class="modal-body text-danger">Грешка!</div>'; });
-            }
-        });
-    });
+    function setupSwap(shiftId, soldierName, dutyName) {
+        // Нагласяме екшъна на формата
+        document.getElementById('swapForm').action = "/roster/swap/" + shiftId + "/";
+        
+        // Попълваме имената за визуализация
+        document.getElementById('swapTargetName').innerText = soldierName;
+        document.getElementById('swapTargetDuty').innerText = dutyName;
+    }
 </script>
 
 </body>

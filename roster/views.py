@@ -2,27 +2,75 @@ from django.shortcuts import render, get_object_or_404, redirect
 from datetime import timedelta # <--- ВАЖНО: Добави това!
 from .models import DutyShift, DutyType, Soldier, Leave # <--- Важно: Трябва да импортнем и Soldier!
 from .forms import DutyShiftForm
+from django.db.models import Count, Q # <--- Трябва ни за броенето
+from django.contrib import messages    # <--- За съобщения "Успешна смяна"
 import calendar
 import datetime
 
 # --- ФУНКЦИЯ 1: ГРАФИК (Това ти липсваше) ---
 def roster_view(request):
-    # 1. Взимаме днешната дата
+    # ... (стандартното начало за датата) ...
     date_str = request.GET.get('date')
     if date_str:
-        selected_date = datetime.datetime.strptime(date_str, '%Y-%m-%d').date()
+        try:
+            selected_date = datetime.datetime.strptime(date_str, '%Y-%m-%d').date()
+        except ValueError:
+            selected_date = datetime.date.today()
     else:
         selected_date = datetime.date.today()
 
-    # 2. ПРОМЯНА: Сортираме по Старшинство на курса (5-ти най-горе), после по тежест на наряда
+    # 1. Наряди (Хората в строя)
     shifts = DutyShift.objects.filter(date=selected_date).order_by(
-        '-soldier__rank_group__priority',  # Групиране (5 -> 1)
-        '-duty_type__weight'               # Най-тежките наряди най-горе
+        '-soldier__rank_group__priority', 
+        '-duty_type__weight'
     )
+
+    # 2. Отсъстващи (Хората извън строя)
+    absentees = Leave.objects.filter(
+        start_date__lte=selected_date, 
+        end_date__gte=selected_date
+    ).select_related('soldier').order_by('leave_type', 'soldier__last_name')
+
+    # --- НОВО: Изчисляваме дните и броим по роти ---
+    absent_c1 = 0
+    absent_c2 = 0
+    absent_young = 0
+
+    # Обработваме списъка, за да добавим полезна инфо
+    for leave in absentees:
+        # Изчисляваме оставащи дни (чисто число)
+        delta = leave.end_date - selected_date
+        leave.days_left = delta.days 
+        
+        # Броим ги
+        if leave.soldier.platoon == 'Млади':
+            absent_young += 1
+        elif leave.soldier.company == '1':
+            absent_c1 += 1
+        elif leave.soldier.company == '2':
+            absent_c2 += 1
+
+    # 3. Статистика за НАРЯДИТЕ (както преди)
+    platoon_stats = shifts.values('soldier__platoon').annotate(count=Count('id')).order_by('soldier__platoon')
+    
+    duty_c1 = shifts.filter(soldier__company='1').count()
+    duty_c2 = shifts.filter(soldier__company='2').count()
+    duty_young = shifts.filter(soldier__platoon='Млади').count()
 
     context = {
         'selected_date': selected_date,
         'shifts': shifts,
+        'platoon_stats': platoon_stats,
+        
+        # Пращаме разбивката: Наряд / Отсъстващи
+        'c1_stats': {'duty': duty_c1, 'absent': absent_c1},
+        'c2_stats': {'duty': duty_c2, 'absent': absent_c2},
+        'young_stats': {'duty': duty_young, 'absent': absent_young},
+        
+        'absent_count': absentees.count(),
+        'absentees': absentees,
+        'total_on_duty': shifts.count(),
+        'all_soldiers': Soldier.objects.filter(is_active=True).order_by('last_name')
     }
     return render(request, 'roster/daily_roster.html', context)
 
@@ -187,3 +235,31 @@ def home_calendar(request):
         'today': today,
     }
     return render(request, 'roster/home_calendar.html', context)
+
+def emergency_swap(request, shift_id):
+    shift = get_object_or_404(DutyShift, id=shift_id)
+    
+    if request.method == 'POST':
+        new_soldier_id = request.POST.get('new_soldier')
+        reason = request.POST.get('reason')
+        
+        new_soldier = get_object_or_404(Soldier, id=new_soldier_id)
+        old_soldier = shift.soldier
+        
+        # 1. Махаме точките на стария
+        old_soldier.score -= shift.duty_type.weight
+        if old_soldier.score < 0: old_soldier.score = 0
+        old_soldier.save()
+        
+        # 2. Сменяме човека в наряда
+        shift.soldier = new_soldier
+        shift.save()
+        
+        # 3. Даваме точките на новия
+        new_soldier.score += shift.duty_type.weight
+        new_soldier.save()
+        
+        messages.success(request, f"🔄 Смяна успешна: {old_soldier.last_name} -> {new_soldier.last_name}")
+        
+    # Връщаме се обратно на датата на наряда
+    return redirect(f"/roster/daily/?date={shift.date}")
