@@ -17,8 +17,16 @@ def roster_view(request):
     else:
         selected_date = datetime.date.today()
 
-    shifts = DutyShift.objects.filter(date=selected_date).select_related('soldier', 'duty_type').order_by(
-        '-soldier__rank_group__priority', 
+    # ПОПРАВКА ТУК:
+    # 1. Добавихме 'soldier__rank_group' в select_related, за да дръпне данните веднага.
+    # 2. Сортираме по ID ('soldier__rank_group'), което е най-безопасно за regroup.
+    shifts = DutyShift.objects.filter(date=selected_date).select_related(
+        'soldier', 
+        'duty_type', 
+        'soldier__rank_group'
+    ).order_by(
+        '-soldier__rank_group__priority',  # 1. Приоритет
+        'soldier__rank_group__name',       # <--- ВАЖНО: Сортираме по ТЕКСТ (Име)
         '-duty_type__weight'
     )
 
@@ -26,6 +34,7 @@ def roster_view(request):
     
     all_soldiers = Soldier.objects.filter(is_active=True).order_by('rank_group__priority', 'last_name')
 
+    # ... (кодът за report речника си остава същият) ...
     report = {
         '1': {'name': '1-ва Рота (ВМС)', 'class': 'primary', 'total': 0, 'present': 0, 'duty': [], 'sick': [], 'home': [], 'mission': [], 'other': []},
         '2': {'name': '2-ра Рота (Медици)', 'class': 'danger', 'total': 0, 'present': 0, 'duty': [], 'sick': [], 'home': [], 'mission': [], 'other': []},
@@ -36,14 +45,10 @@ def roster_view(request):
     leave_map = {l.soldier_id: l for l in leaves}
 
     for s in all_soldiers:
-        if s.platoon == 'Млади':
-            group_key = 'young'
-        elif s.company == '1':
-            group_key = '1'
-        elif s.company == '2':
-            group_key = '2'
-        else:
-            continue
+        if s.platoon == 'Млади': group_key = 'young'
+        elif s.company == '1': group_key = '1'
+        elif s.company == '2': group_key = '2'
+        else: continue
 
         report[group_key]['total'] += 1
         
@@ -57,7 +62,6 @@ def roster_view(request):
         elif s.id in shift_map:
             sh = shift_map[s.id]
             report[group_key]['duty'].append(sh)
-            
         else:
             report[group_key]['present'] += 1
 

@@ -112,8 +112,7 @@
         <div class="tab-pane fade show active" id="roster">
           {% if messages %} {% for message in messages %}
           <div class="alert alert-success">{{ message }}</div>
-          {% endfor %} {% endif %} {% if shifts %} {% regroup shifts by
-          soldier.rank_group as course_groups %}
+          {% endfor %} {% endif %} {% if shifts %} {% regroup shifts by soldier.rank_group.name as course_groups %}
           <div class="accordion" id="rosterAccordion">
             {% for group in course_groups %}
             <div class="accordion-item mb-2 shadow-sm">
