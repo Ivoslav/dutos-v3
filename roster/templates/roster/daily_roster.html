@@ -84,17 +84,19 @@
         <li class="nav-item" role="presentation">
           <button
             class="nav-link active"
-            id="roster-tab"
+            id="shifts-tab"
             data-bs-toggle="tab"
-            data-bs-target="#roster"
+            data-bs-target="#shifts" 
             type="button"
+            role="tab"
+            aria-controls="shifts"
+            aria-selected="true"
           >
             📋 Дежурна служба
-            <span class="badge bg-primary rounded-pill ms-1"
-              >{{ total_on_duty }}</span
-            >
+            <span class="badge bg-primary rounded-pill ms-1">{{ total_on_duty }}</span>
           </button>
         </li>
+        
         <li class="nav-item" role="presentation">
           <button
             class="nav-link"
@@ -102,6 +104,9 @@
             data-bs-toggle="tab"
             data-bs-target="#stats"
             type="button"
+            role="tab"
+            aria-controls="stats"
+            aria-selected="false"
           >
             📊 Разход / Статистика
           </button>
@@ -109,76 +114,80 @@
       </ul>
 
       <div class="tab-content" id="dailyTabsContent">
-        <div class="tab-pane fade show active" id="roster">
-          {% if messages %} {% for message in messages %}
-          <div class="alert alert-success">{{ message }}</div>
-          {% endfor %} {% endif %} {% if shifts %} {% regroup shifts by soldier.rank_group.name as course_groups %}
-          <div class="accordion" id="rosterAccordion">
-            {% for group in course_groups %}
-            <div class="accordion-item mb-2 shadow-sm">
-              <h2 class="accordion-header">
-                <button
-                  class="accordion-button"
-                  type="button"
-                  data-bs-toggle="collapse"
-                  data-bs-target="#collapse{{ forloop.counter }}"
-                >
-                  <strong>{{ group.grouper }}</strong>
-                </button>
-              </h2>
-              <div
-                id="collapse{{ forloop.counter }}"
-                class="accordion-collapse collapse show"
-              >
-                <div class="accordion-body p-0">
-                  <div class="list-group list-group-flush">
-                    {% for shift in group.list %}
-                    <div
-                      class="list-group-item d-flex justify-content-between align-items-center"
-                    >
-                      <div class="d-flex align-items-center">
-                        <div class="me-3 text-center" style="min-width: 80px">
-                          <div class="fw-bold text-primary">
-                            {{ shift.duty_type.name }}
-                          </div>
-                          <small class="text-muted"
-                            >{{ shift.duty_type.weight }} т.</small
-                          >
-                        </div>
-                        <div>
-                          <span class="fw-bold"
-                            >{{ shift.soldier.rank_title }} {{
-                            shift.soldier.last_name }}</span
-                          >
-                          <div class="small text-muted">
-                            {{ shift.soldier.faculty_number }} | {{
-                            shift.soldier.platoon }} взв.
-                          </div>
-                        </div>
-                      </div>
+        <div class="tab-pane fade show active" id="shifts">
+    
+    {% regroup shifts by soldier.rank_group.name as course_groups %}
 
-                      <button
-                        class="btn btn-outline-danger btn-sm"
-                        data-bs-toggle="modal"
-                        data-bs-target="#swapModal"
-                        onclick="setupSwap('{{ shift.id }}', '{{ shift.soldier.last_name }}', '{{ shift.duty_type.name }}')"
-                      >
-                        🔄 Смяна
-                      </button>
-                    </div>
-                    {% endfor %}
-                  </div>
+    <div class="accordion" id="accordionShifts">
+        {% for group in course_groups %}
+        <div class="accordion-item mb-3 shadow-sm border-0">
+            
+            <h2 class="accordion-header" id="heading{{ forloop.counter }}">
+                <button class="accordion-button {% if not forloop.first %}collapsed{% endif %} fw-bold bg-light text-dark" 
+                        type="button" 
+                        data-bs-toggle="collapse" 
+                        data-bs-target="#collapse{{ forloop.counter }}">
+                    {{ group.grouper }} <span class="badge bg-primary ms-2 rounded-pill">{{ group.list|length }}</span>
+                </button>
+            </h2>
+
+            <div id="collapse{{ forloop.counter }}" 
+                 class="accordion-collapse collapse {% if forloop.first %}show{% endif %}" 
+                 data-bs-parent="#accordionShifts">
+                
+                <div class="accordion-body p-0">
+                    <table class="table table-hover table-striped mb-0 align-middle">
+                        <thead class="table-light small text-uppercase">
+                            <tr>
+                                <th style="width: 40%">Военнослужещ</th>
+                                <th style="width: 40%">Наряд</th>
+                                <th class="text-end">Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for shift in group.list %}
+                            <tr>
+                                <td>
+                                    <div class="fw-bold">
+                                        <a href="#" class="text-decoration-none text-dark open-profile" 
+                                           data-url="{% url 'soldier_profile' shift.soldier.id %}">
+                                            {{ shift.soldier.rank_title }} {{ shift.soldier.last_name }}
+                                        </a>
+                                    </div>
+                                    
+                                    <div class="small text-muted">
+                                        {{ shift.soldier.faculty_number }} | {{ shift.soldier.platoon }} взв.
+                                    </div>
+                                </td>
+
+                                <td>
+                                    <span class="badge bg-primary" style="font-size: 0.9rem;">
+                                        {{ shift.duty_type.name }}
+                                    </span>
+                                </td>
+
+                                <td class="text-end">
+                                    <button class="btn btn-sm btn-outline-danger" 
+                                            data-bs-toggle="modal" 
+                                            data-bs-target="#swapModal"
+                                            onclick="setupSwap('{{ shift.id }}', '{{ shift.soldier.last_name }}', '{{ shift.duty_type.name }}')">
+                                        🔄 Смяна
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
                 </div>
-              </div>
             </div>
-            {% endfor %}
-          </div>
-          {% else %}
-          <div class="alert alert-warning text-center p-5">
-            📭 Няма генериран график за днес.
-          </div>
-          {% endif %}
         </div>
+        {% empty %}
+            <div class="alert alert-info text-center">
+                📭 Няма назначени наряди за тази дата.
+            </div>
+        {% endfor %}
+    </div>
+</div>
 
         <div class="tab-pane fade" id="stats">
           <div class="accordion" id="reportAccordion">
@@ -370,6 +379,8 @@
 
               <div class="mb-3">
                 <label class="form-label">Избери заместник:</label>
+                <div class="mb-3">
+                <label class="form-label">Избери заместник:</label>
                 <select
                   name="new_soldier"
                   class="form-select"
@@ -378,14 +389,15 @@
                 >
                   {% for s in all_soldiers %}
                   <option value="{{ s.id }}">
-                    {{ s.last_name }} ({{ s.rank_title }}) - {{ s.faculty_number
-                    }} [{{ s.score }} т.]
+                    {{ s.last_name }} ({{ s.rank_title }}) - {{ s.faculty_number }} [{{ s.score }} т.]
                   </option>
                   {% endfor %}
                 </select>
-                <small class="text-muted"
-                  >Точките ще бъдат прехвърлени автоматично.</small
-                >
+                <small class="text-muted">Точките ще бъдат прехвърлени автоматично.</small>
+              </div>
+                  {% for s in all_soldiers %}
+                  {% endfor %}
+                </select>
               </div>
 
               <div class="mb-3">
@@ -425,5 +437,96 @@
         document.getElementById("swapTargetDuty").innerText = dutyName;
       }
     </script>
+    <div class="modal fade" id="soldierModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-body text-center p-5">
+                <div class="spinner-border text-primary" role="status"></div>
+                <p class="mt-2">Зареждане на досие...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        // 1. Инициализиране на модалния прозорец
+        var soldierModalEl = document.getElementById('soldierModal');
+        var bsModal = new bootstrap.Modal(soldierModalEl);
+        var modalContent = soldierModalEl.querySelector('.modal-content');
+
+        // 2. Слушател за клик върху ВСЯКО име (в таблицата с наряди или в строевия разход)
+        document.body.addEventListener('click', function(e) {
+            // Търсим дали е кликнато върху елемент с клас 'open-profile'
+            var target = e.target.closest('.open-profile');
+            
+            if (target) {
+                e.preventDefault(); // <--- ВАЖНО: Това спира връщането горе (#)
+                
+                var url = target.getAttribute('data-url');
+                
+                // Показваме прозореца
+                bsModal.show();
+                
+                // Зареждаме съдържанието от сървъра
+                fetch(url)
+                    .then(response => response.text())
+                    .then(html => {
+                        modalContent.innerHTML = html;
+                        // След като зареди, трябва да активираме формата вътре (ако има такава)
+                        bindDutyForm();
+                    })
+                    .catch(err => {
+                        modalContent.innerHTML = '<div class="modal-body text-danger">Грешка при зареждане!</div>';
+                        console.error(err);
+                    });
+            }
+        });
+
+        // 3. Функция за обработка на формата за добавяне на наряд (вътре в модала)
+        function bindDutyForm() {
+            var form = document.getElementById('dutyForm');
+            if (form) {
+                form.addEventListener('submit', function(e) {
+                    e.preventDefault(); // Спираме презареждането
+                    
+                    var formData = new FormData(form);
+                    var actionUrl = form.getAttribute('action');
+
+                    fetch(actionUrl, {
+                        method: 'POST',
+                        body: formData,
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    })
+                    .then(response => {
+                        if (response.redirected) {
+                            window.location.reload(); // Ако е успешно -> рефреш
+                        } else {
+                            return response.text(); // Ако има грешка -> покажи я
+                        }
+                    })
+                    .then(html => {
+                        if (html) {
+                            modalContent.innerHTML = html;
+                            bindDutyForm(); // Закачаме слушателя пак за новата форма
+                        }
+                    });
+                });
+            }
+        }
+
+        // 4. Скрипт за бутона "Смяна" (Emergency Swap)
+        window.setupSwap = function(shiftId, soldierName, dutyName) {
+            var form = document.getElementById('swapForm');
+            if(form) {
+                // Променяме URL-а на формата динамично
+                form.action = "/roster/swap/" + shiftId + "/";
+                // Слагаме имената в модала, за да знае командирът кой сменя
+                document.getElementById('swapTargetName').innerText = soldierName;
+                document.getElementById('swapTargetDuty').innerText = dutyName;
+            }
+        };
+    });
+</script>
   </body>
 </html>

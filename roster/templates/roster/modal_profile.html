@@ -1,109 +1,90 @@
-<div class="modal-header">
-  <h5 class="modal-title">
-    📂 {{ soldier.rank_title }} {{ soldier.last_name }}
-  </h5>
-  <button
-    type="button"
-    class="btn-close"
-    data-bs-dismiss="modal"
-    aria-label="Close"
-  ></button>
+<div class="modal-header bg-light">
+    <h5 class="modal-title" id="soldierModalLabel">
+        👤 Досие: {{ soldier.rank_title }} {{ soldier.last_name }}
+    </h5>
+    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
 </div>
 
 <div class="modal-body">
-  <div class="row">
-    <div class="col-md-5 border-end">
-      <p><strong>Номер:</strong> {{ soldier.faculty_number }}</p>
-      <p>
-        <strong>Точки:</strong>
-        <span class="badge bg-primary">{{ soldier.score }}</span>
-      </p>
-      <p><strong>Взвод:</strong> {{ soldier.platoon }}</p>
-
-      {% if leaves %}
-      <div class="alert alert-warning p-2 mt-2" style="font-size: 0.85rem">
-        <strong>🏖️ Отсъствия:</strong>
-        <ul class="mb-0 ps-3">
-          {% for l in leaves %}
-          <li>
-            {{ l.get_leave_type_display }}: {{ l.start_date|date:"d.m" }} - {{
-            l.end_date|date:"d.m" }}
-          </li>
-          {% endfor %}
-        </ul>
-      </div>
-      {% endif %}
-
-      <hr />
-      <h6>➕ Ръчно добавяне</h6>
-
-      {% if form.errors %}
-      <div class="alert alert-danger p-2" style="font-size: 0.85rem">
-        {% for field, errors in form.errors.items %} {{ errors|striptags }} {%
-        endfor %}
-      </div>
-      {% endif %}
-
-      <form
-        id="dutyForm"
-        method="post"
-        action="{% url 'soldier_profile' soldier.id %}"
-      >
-        {% csrf_token %}
-        <div class="mb-2">
-          <label>Дата:</label>
-          {{ form.date }}
+    
+    <div class="d-flex justify-content-between align-items-center mb-4 p-3 bg-white border rounded shadow-sm">
+        <div>
+            <div class="text-muted small">Факултетен № / Взвод</div>
+            <strong>{{ soldier.faculty_number }} | {{ soldier.platoon }} взвод</strong>
         </div>
-        <div class="mb-2">
-          <label>Наряд:</label>
-          {{ form.duty_type }}
+        <div class="text-end">
+            <div class="text-muted small">Натовареност</div>
+            <span class="badge bg-primary fs-5">{{ soldier.score }} точки</span>
         </div>
-        <button type="submit" class="btn btn-success btn-sm w-100">
-          Запиши наряд
-        </button>
-      </form>
     </div>
 
-    <div class="col-md-7">
-      <h6 class="text-primary">📅 Предстоящи наряди</h6>
-      <div class="mb-3 border rounded p-2 bg-light">
-        {% if upcoming_shifts %}
-        <table class="table table-sm table-borderless mb-0">
-          {% for shift in upcoming_shifts %}
-          <tr>
-            <td class="fw-bold">{{ shift.date|date:"d.m.Y" }}</td>
-            <td>{{ shift.duty_type.name }}</td>
-          </tr>
-          {% endfor %}
-        </table>
-        {% else %}
-        <small class="text-muted">Няма планирани.</small>
-        {% endif %}
-      </div>
+    <div class="card mb-4 border-primary">
+        <div class="card-header bg-primary text-white py-1">➕ Назначи наряд</div>
+        <div class="card-body bg-light">
+            <form id="dutyForm" method="post" action="{% url 'soldier_profile' soldier.id %}" class="row g-2 align-items-end">
+                {% csrf_token %}
+                
+                {% if form.date.errors %}
+                    <div class="col-12 text-danger fw-bold small mb-2">
+                        {{ form.date.errors.0 }}
+                    </div>
+                {% endif %}
 
-      <h6 class="text-secondary">📜 История</h6>
-      <div style="max-height: 200px; overflow-y: auto">
-        <table class="table table-sm table-striped">
-          <thead>
-            <tr>
-              <th>Дата</th>
-              <th>Наряд</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for shift in past_shifts %}
-            <tr>
-              <td>{{ shift.date|date:"d.m.Y" }}</td>
-              <td>{{ shift.duty_type.name }}</td>
-            </tr>
-            {% empty %}
-            <tr>
-              <td colspan="2" class="text-muted">Няма записи.</td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
+                <div class="col-6">
+                    <label class="small text-muted">Дата:</label>
+                    {{ form.date }} </div>
+                <div class="col-6">
+                    <label class="small text-muted">Вид наряд:</label>
+                    {{ form.duty_type }}
+                </div>
+                <div class="col-12 mt-2">
+                    <button type="submit" class="btn btn-primary btn-sm w-100">Запиши</button>
+                </div>
+            </form>
+        </div>
     </div>
-  </div>
+
+    {% if leaves %}
+    <h6 class="text-warning border-bottom border-warning pb-1">⚠️ Отпуски и Болнични</h6>
+    <ul class="list-group list-group-flush mb-3 small">
+        {% for leave in leaves %}
+            <li class="list-group-item d-flex justify-content-between align-items-center bg-warning bg-opacity-10">
+                <span>
+                    {% if leave.leave_type == 'sick' %}🤒 Болничен{% else %}🏠 Отпуск{% endif %}
+                    <span class="text-muted">({{ leave.start_date|date:"d.m" }} - {{ leave.end_date|date:"d.m" }})</span>
+                </span>
+            </li>
+        {% endfor %} </ul>
+    {% endif %}
+
+    <h6 class="text-primary border-bottom border-primary pb-1">📅 Предстоящи наряди</h6>
+    {% if upcoming_shifts %}
+        <ul class="list-group list-group-flush mb-3 small">
+            {% for shift in upcoming_shifts %}
+            <li class="list-group-item d-flex justify-content-between">
+                <strong>{{ shift.date|date:"d.m.Y" }} ({{ shift.date|date:"l" }})</strong>
+                <span class="badge bg-primary">{{ shift.duty_type.name }}</span>
+            </li>
+            {% endfor %} </ul>
+    {% else %}
+        <p class="text-muted small mb-3">Няма планирани наряди.</p>
+    {% endif %}
+
+    <h6 class="text-secondary border-bottom pb-1 mt-4">clock История (Последни 5)</h6>
+    {% if past_shifts %}
+        <ul class="list-group list-group-flush small text-muted">
+            {% for shift in past_shifts|slice:":5" %}
+            <li class="list-group-item d-flex justify-content-between bg-light">
+                <span>{{ shift.date|date:"d.m.Y" }}</span>
+                <span>{{ shift.duty_type.name }}</span>
+            </li>
+            {% endfor %} </ul>
+    {% else %}
+        <p class="text-muted small">Няма история.</p>
+    {% endif %}
+
+</div>
+
+<div class="modal-footer bg-light p-1">
+    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Затвори</button>
 </div>
