@@ -1,6 +1,5 @@
 from django.contrib import admin
 from django.db.models import Q
-from django.utils.html import format_html
 from .models import Soldier, DutyType, DutyShift, Leave
 
 # === 1. СПЕЦИАЛЕН ФИЛТЪР ЗА РОТИТЕ ===
@@ -79,50 +78,13 @@ class DutyShiftAdmin(admin.ModelAdmin):
 # === 4. ОТПУСКИ ===
 @admin.register(Leave)
 class LeaveAdmin(admin.ModelAdmin):
-    list_display = ('soldier_link', 'colored_type', 'start_date', 'end_date', 'days_count', 'status_bar')
+    list_display = ('soldier', 'leave_type', 'start_date', 'end_date', 'days_count')
     list_filter = ('leave_type', 'start_date')
-    search_fields = ('soldier__last_name', 'soldier__faculty_number')
-    list_per_page = 20
-
-    # 1. Цветен етикет за вида отпуск
-    def colored_type(self, obj):
-        colors = {
-            'sick': ('red', 'Болничен'),
-            'home': ('orange', 'Домашен'),
-            'mission': ('blue', 'Командировка'),
-            'arrest': ('black', 'Арест'),
-            'other': ('gray', 'Друго'),
-        }
-        color, label = colors.get(obj.leave_type, ('gray', obj.leave_type))
-        
-        return format_html(
-            '<span style="background-color: {}; color: white; padding: 3px 8px; border-radius: 10px; font-weight: bold;">{}</span>',
-            color, label
-        )
-    colored_type.short_description = 'Вид'
-
-    # 2. Линк към войника (вместо просто име)
-    def soldier_link(self, obj):
-        return obj.soldier
-    soldier_link.short_description = 'Военнослужещ'
-    soldier_link.admin_order_field = 'soldier__last_name'
-
-    # 3. Визуална лента за продължителността
-    def status_bar(self, obj):
-        delta = (obj.end_date - obj.start_date).days
-        # Макс черта = 30 дни
-        width = min(delta * 3, 100) 
-        color = 'red' if obj.leave_type == 'sick' else 'green'
-        
-        return format_html(
-            '<div style="width: 100px; background-color: #ddd; height: 5px; border-radius: 2px;">'
-            '<div style="width: {}px; background-color: {}; height: 100%;"></div>'
-            '</div>',
-            width, color
-        )
-    status_bar.short_description = 'Дължина'
-
+    search_fields = ('soldier__last_name',)
+    
     def days_count(self, obj):
         delta = obj.end_date - obj.start_date
         return f"{delta.days} дни"
-    days_count.short_description = 'Дни'
+    days_count.short_description = 'Продължителност'
+
+admin.site.register(DutyType)
