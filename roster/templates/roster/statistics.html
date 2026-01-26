@@ -2,40 +2,23 @@
 <html lang="bg">
   <head>
     <meta charset="UTF-8" />
-    <title>DUTOS - Статистика и Масови Действия</title>
+    <title>DUTOS - Статистика</title>
     <link
       href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
       rel="stylesheet"
     />
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <style>
-      body {
-        background-color: #f8f9fa;
-      }
-      .score-bar {
-        height: 10px;
-        border-radius: 5px;
-        background-color: #e9ecef;
-      }
-      .score-fill {
-        height: 100%;
-        border-radius: 5px;
-        background-color: #0d6efd;
-      }
-      .high-score {
-        background-color: #dc3545;
-      }
-      /* Стилове за таблицата с чекбоксове */
-      .soldier-row.hidden {
-        display: none;
-      }
-      .selected-row {
-        background-color: #e8f0fe !important;
-      }
+      body { background-color: #f8f9fa; }
+      .score-bar { height: 10px; border-radius: 5px; background-color: #e9ecef; }
+      .score-fill { height: 100%; border-radius: 5px; background-color: #0d6efd; }
+      .high-score { background-color: #dc3545; }
+      .soldier-row.hidden { display: none; }
+      .selected-row { background-color: #e8f0fe !important; }
     </style>
   </head>
   <body>
-    <div class="container mt-4">
+    <div class="container mt-4 mb-5">
       
       {% if messages %}
         {% for message in messages %}
@@ -47,35 +30,22 @@
       {% endif %}
 
       <div class="d-flex justify-content-between align-items-center mb-4">
-          <h1 class="display-6">📊 Оперативно Табло</h1>
+          <h1 class="display-6">📊 Статистика и Управление</h1>
           <a href="{% url 'daily_roster' %}" class="btn btn-outline-primary">⬅️ Към Графика</a>
       </div>
 
       <ul class="nav nav-tabs" id="myTab" role="tablist">
         <li class="nav-item">
-          <button class="nav-link active" id="points-tab" data-bs-toggle="tab" data-bs-target="#points" type="button">
-            ⚖️ Нарядни Точки
-          </button>
+          <button class="nav-link active" id="points-tab" data-bs-toggle="tab" data-bs-target="#points" type="button">⚖️ Точки</button>
         </li>
         <li class="nav-item">
-          <button class="nav-link" id="company-tab" data-bs-toggle="tab" data-bs-target="#company" type="button">
-            🏢 По Роти
-          </button>
+          <button class="nav-link" id="company-tab" data-bs-toggle="tab" data-bs-target="#company" type="button">🏢 По Роти</button>
         </li>
         <li class="nav-item">
-            <button class="nav-link" id="mass-tab" data-bs-toggle="tab" data-bs-target="#mass" type="button">
-              ⚡ Масово Отпуска/Награда
-            </button>
+            <button class="nav-link" id="mass-tab" data-bs-toggle="tab" data-bs-target="#mass" type="button">⚡ Масово Отпуска</button>
         </li>
         <li class="nav-item">
-          <button class="nav-link" id="crews-tab" data-bs-toggle="tab" data-bs-target="#crews" type="button">
-            🚢 Екипажи
-          </button>
-        </li>
-        <li class="nav-item">
-          <button class="nav-link" id="class-tab" data-bs-toggle="tab" data-bs-target="#class" type="button">
-            🎓 Класни
-          </button>
+          <button class="nav-link" id="crews-tab" data-bs-toggle="tab" data-bs-target="#crews" type="button">🚢 Екипажи</button>
         </li>
       </ul>
 
@@ -84,40 +54,20 @@
         <div class="tab-pane fade show active" id="points">
           {% regroup leaderboard by rank_group as course_groups %}
 
-          <div class="d-flex justify-content-end mb-2">
-            <button class="btn btn-outline-secondary btn-sm" onclick="toggleAllAccordions()">
-              ↕️ Разпъни / Свий всички
-            </button>
-          </div>
-
           <div class="accordion" id="accordionCourses">
             {% for group in course_groups %}
             <div class="card mb-3 border-secondary">
-              <div
-                class="card-header bg-secondary text-white d-flex justify-content-between align-items-center"
-                style="cursor: pointer"
-                data-bs-toggle="collapse"
-                data-bs-target="#collapseCourse{{ forloop.counter }}"
-              >
-                <h5 class="mb-0">
-                  <span class="me-2">📂</span> {{ group.grouper }}
-                </h5>
-                <div>
-                  <span class="badge bg-light text-dark me-2">{{ group.list|length }} човека</span>
-                  <small>▼</small>
-                </div>
+              <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center"
+                style="cursor: pointer" data-bs-toggle="collapse" data-bs-target="#collapseCourse{{ forloop.counter }}">
+                <h5 class="mb-0">📂 {{ group.grouper }}</h5>
+                <span class="badge bg-light text-dark">{{ group.list|length }} души</span>
               </div>
 
               <div id="collapseCourse{{ forloop.counter }}" class="accordion-collapse collapse" data-bs-parent="#accordionCourses">
                 <div class="card-body p-0">
                   <table class="table table-striped table-hover mb-0">
                     <thead>
-                      <tr>
-                        <th style="width: 5%">#</th>
-                        <th style="width: 35%">Име</th>
-                        <th style="width: 15%">Точки</th>
-                        <th style="width: 45%">Натоварване</th>
-                      </tr>
+                      <tr><th>#</th><th>Име</th><th>Точки</th><th>Натоварване</th></tr>
                     </thead>
                     <tbody>
                       {% for soldier in group.list %}
@@ -127,9 +77,7 @@
                           <a href="#" class="text-decoration-none text-dark open-profile" data-url="{% url 'soldier_profile' soldier.id %}">
                             {{ soldier.rank_title }} <strong>{{ soldier.last_name }}</strong>
                           </a>
-                          <div class="small text-muted" style="font-size: 0.8em">
-                            {{ soldier.faculty_number }}
-                          </div>
+                          <div class="small text-muted">{{ soldier.faculty_number }}</div>
                         </td>
                         <td><strong>{{ soldier.score }}</strong></td>
                         <td class="align-middle">
@@ -150,29 +98,15 @@
 
         <div class="tab-pane fade" id="company">
           <div class="row">
-            
             <div class="col-md-4 mb-3">
-              <div class="card h-100 shadow-sm border-primary">
-                <div class="card-header bg-primary text-white text-center">
-                  <h5 class="mb-0">1-ва РОТА</h5>
-                  <span class="badge bg-light text-dark mt-1">{{ company_1|length }} души</span>
-                </div>
+              <div class="card h-100 border-primary">
+                <div class="card-header bg-primary text-white text-center">1-ва РОТА <span class="badge bg-light text-dark">{{ company_1|length }}</span></div>
                 <div class="table-responsive" style="max_height: 500px; overflow-y: auto;">
                   <table class="table table-hover table-sm mb-0">
-                    <thead class="table-light sticky-top">
-                      <tr>
-                        <th>Звание / Име</th>
-                        <th class="text-end">Взвод</th>
-                      </tr>
-                    </thead>
                     <tbody>
                       {% for s in company_1 %}
                       <tr>
-                        <td>
-                          <a href="#" class="text-decoration-none text-dark open-profile" data-url="{% url 'soldier_profile' s.id %}">
-                            <strong>{{ s.rank_title }}</strong> {{ s.last_name }}
-                          </a>
-                        </td>
+                        <td><a href="#" class="text-dark open-profile" data-url="{% url 'soldier_profile' s.id %}"><strong>{{ s.rank_title }}</strong> {{ s.last_name }}</a></td>
                         <td class="text-end"><span class="badge bg-secondary">{{ s.platoon }} взв.</span></td>
                       </tr>
                       {% endfor %}
@@ -183,27 +117,14 @@
             </div>
 
             <div class="col-md-4 mb-3">
-              <div class="card h-100 shadow-sm border-danger">
-                <div class="card-header bg-danger text-white text-center">
-                  <h5 class="mb-0">2-ра РОТА (Медици)</h5>
-                  <span class="badge bg-light text-dark mt-1">{{ company_2|length }} души</span>
-                </div>
+              <div class="card h-100 border-danger">
+                <div class="card-header bg-danger text-white text-center">2-ра РОТА <span class="badge bg-light text-dark">{{ company_2|length }}</span></div>
                 <div class="table-responsive" style="max_height: 500px; overflow-y: auto;">
                     <table class="table table-hover table-sm mb-0">
-                      <thead class="table-light sticky-top">
-                        <tr>
-                          <th>Звание / Име</th>
-                          <th class="text-end">Взвод</th>
-                        </tr>
-                      </thead>
                       <tbody>
                         {% for s in company_2 %}
                         <tr>
-                          <td>
-                            <a href="#" class="text-decoration-none text-dark open-profile" data-url="{% url 'soldier_profile' s.id %}">
-                              <strong>{{ s.rank_title }}</strong> {{ s.last_name }}
-                            </a>
-                          </td>
+                          <td><a href="#" class="text-dark open-profile" data-url="{% url 'soldier_profile' s.id %}"><strong>{{ s.rank_title }}</strong> {{ s.last_name }}</a></td>
                           <td class="text-end"><span class="badge bg-secondary">{{ s.platoon }} взв.</span></td>
                         </tr>
                         {% endfor %}
@@ -214,27 +135,14 @@
             </div>
 
             <div class="col-md-4 mb-3">
-                <div class="card h-100 shadow-sm border-success">
-                  <div class="card-header bg-success text-white text-center">
-                    <h5 class="mb-0">👶 МЛАДИ КУРСАНТИ</h5>
-                    <span class="badge bg-light text-dark mt-1">{{ young_cadets|length }} души</span>
-                  </div>
+                <div class="card h-100 border-success">
+                  <div class="card-header bg-success text-white text-center">👶 МЛАДИ <span class="badge bg-light text-dark">{{ young_cadets|length }}</span></div>
                   <div class="table-responsive" style="max_height: 500px; overflow-y: auto;">
                       <table class="table table-hover table-sm mb-0">
-                        <thead class="table-light sticky-top">
-                          <tr>
-                            <th>Звание / Име</th>
-                            <th class="text-end">Статус</th>
-                          </tr>
-                        </thead>
                         <tbody>
                           {% for s in young_cadets %}
                           <tr>
-                            <td>
-                              <a href="#" class="text-decoration-none text-dark open-profile" data-url="{% url 'soldier_profile' s.id %}">
-                                <strong>{{ s.rank_title }}</strong> {{ s.last_name }}
-                              </a>
-                            </td>
+                            <td><a href="#" class="text-dark open-profile" data-url="{% url 'soldier_profile' s.id %}"><strong>{{ s.rank_title }}</strong> {{ s.last_name }}</a></td>
                             <td class="text-end"><span class="badge bg-success">1-ви курс</span></td>
                           </tr>
                           {% endfor %}
@@ -249,30 +157,11 @@
         <div class="tab-pane fade" id="mass">
             <form method="post" action="{% url 'save_batch_leave' %}">
                 {% csrf_token %}
-                
-                <div class="row g-3 mb-4 p-3 bg-light rounded border">
-                    <div class="col-12 text-center text-primary fw-bold">
-                        ⚡ Настройки за масовата отпуска / награда
-                    </div>
-                    <div class="col-md-3">
-                        {{ batch_form.start_date.label_tag }}
-                        {{ batch_form.start_date }}
-                    </div>
-                    <div class="col-md-3">
-                        {{ batch_form.end_date.label_tag }}
-                        {{ batch_form.end_date }}
-                    </div>
-                    <div class="col-md-3">
-                        {{ batch_form.leave_type.label_tag }}
-                        {{ batch_form.leave_type }}
-                    </div>
-                    <div class="col-md-3">
-                        {{ batch_form.reason.label_tag }}
-                        {{ batch_form.reason }}
-                    </div>
-                    <div class="col-12 small text-muted text-center">
-                        ℹ️ Ако военнослужещият има наряди в този период, те ще бъдат автоматично премахнати и точките възстановени.
-                    </div>
+                <div class="row g-2 mb-3 p-3 bg-light rounded border">
+                    <div class="col-md-3">{{ batch_form.start_date.label_tag }} {{ batch_form.start_date }}</div>
+                    <div class="col-md-3">{{ batch_form.end_date.label_tag }} {{ batch_form.end_date }}</div>
+                    <div class="col-md-3">{{ batch_form.leave_type.label_tag }} {{ batch_form.leave_type }}</div>
+                    <div class="col-md-3">{{ batch_form.reason.label_tag }} {{ batch_form.reason }}</div>
                 </div>
 
                 <div class="d-flex justify-content-between align-items-center mb-2">
@@ -281,7 +170,6 @@
                             <option value="all">Всички Роти</option>
                             <option value="1">1-ва Рота</option>
                             <option value="2">2-ра Рота</option>
-                            <option value="Щаб">Щаб</option>
                         </select>
                         <select id="filterPlatoon" class="form-select form-select-sm" style="width: 150px;">
                             <option value="all">Всички Взводове</option>
@@ -292,123 +180,67 @@
                             <option value="Млади">Млади</option>
                         </select>
                     </div>
-                    <button type="submit" class="btn btn-success fw-bold">
-                        💾 Запиши на избраните
-                    </button>
+                    <button type="submit" class="btn btn-success fw-bold">💾 Запиши</button>
                 </div>
 
-                <div class="table-responsive border rounded" style="max_height: 600px; overflow-y: auto;">
+                <div class="table-responsive border rounded" style="max_height: 500px; overflow-y: auto;">
                     <table class="table table-hover mb-0" id="massTable">
                         <thead class="table-dark sticky-top">
                             <tr>
-                                <th style="width: 40px;">
-                                    <input type="checkbox" id="selectAllVisible" class="form-check-input" style="cursor: pointer;">
-                                </th>
-                                <th>Име и Звание</th>
-                                <th>Рота / Взвод</th>
+                                <th style="width: 40px;"><input type="checkbox" id="selectAllVisible" class="form-check-input"></th>
+                                <th>Име</th>
+                                <th>Рота/Взвод</th>
                                 <th>Точки</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for s in all_soldiers %}
                             <tr class="soldier-row" data-company="{{ s.company }}" data-platoon="{{ s.platoon }}">
-                                <td class="text-center">
-                                    <input type="checkbox" name="selected_soldiers" value="{{ s.id }}" class="form-check-input row-checkbox">
-                                </td>
-                                <td>
-                                    <strong>{{ s.last_name }}</strong> <small class="text-muted">({{ s.rank_title }})</small>
-                                </td>
-                                <td>
-                                    {% if s.company == '1' %}
-                                        <span class="badge bg-primary">1-ва</span>
-                                    {% elif s.company == '2' %}
-                                        <span class="badge bg-danger">2-ра</span>
-                                    {% else %}
-                                        <span class="badge bg-secondary">{{ s.company }}</span>
-                                    {% endif %}
-                                    / {{ s.platoon }} взв.
-                                </td>
+                                <td class="text-center"><input type="checkbox" name="selected_soldiers" value="{{ s.id }}" class="form-check-input row-checkbox"></td>
+                                <td>{{ s.rank_title }} <strong>{{ s.last_name }}</strong></td>
+                                <td>{{ s.company }} рота / {{ s.platoon }}</td>
                                 <td>{{ s.score }}</td>
                             </tr>
                             {% endfor %}
                         </tbody>
                     </table>
                 </div>
-                <div class="text-end mt-2 text-muted small">
-                    Показани <span id="visibleCount">{{ all_soldiers|length }}</span> от {{ all_soldiers|length }} души
-                </div>
+                <div class="text-end mt-2 small text-muted">Показани <span id="visibleCount">{{ all_soldiers|length }}</span> души</div>
             </form>
         </div>
 
         <div class="tab-pane fade" id="crews">
-          {% regroup by_crew by crew as crew_list %} {% if crew_list %}
+          {% regroup by_crew by crew as crew_list %}
           <div class="row">
             {% for crew in crew_list %}
             <div class="col-md-4 mb-3">
               <div class="card border-primary h-100">
-                <div class="card-header bg-primary text-white">
-                  Екипаж: {{ crew.grouper }}
-                </div>
+                <div class="card-header bg-primary text-white">Екипаж: {{ crew.grouper }}</div>
                 <ul class="list-group list-group-flush">
                   {% for s in crew.list %}
-                  <li class="list-group-item">
-                    {{ s.rank_title }} {{ s.last_name }}
-                  </li>
+                  <li class="list-group-item">{{ s.rank_title }} {{ s.last_name }}</li>
                   {% endfor %}
                 </ul>
               </div>
             </div>
             {% endfor %}
           </div>
-          {% else %}
-          <div class="alert alert-info">Няма въведени данни за екипажи.</div>
-          {% endif %}
         </div>
 
-        <div class="tab-pane fade" id="class">
-          {% regroup by_class by class_section as class_list %}
-          <div class="accordion" id="accordionClass">
-            {% for section in class_list %}
-            <div class="accordion-item">
-              <h2 class="accordion-header">
-                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ forloop.counter }}">
-                  Класно: {{ section.grouper }} ({{ section.list|length }} души)
-                </button>
-              </h2>
-              <div id="collapse{{ forloop.counter }}" class="accordion-collapse collapse" data-bs-parent="#accordionClass">
-                <div class="accordion-body">
-                  <table class="table table-sm">
-                    <thead><tr><th>Фак. №</th><th>Име</th><th>Точки</th></tr></thead>
-                    <tbody>
-                      {% for s in section.list %}
-                      <tr><td>{{ s.faculty_number }}</td><td>{{ s.last_name }}</td><td>{{ s.score }}</td></tr>
-                      {% endfor %}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-            {% endfor %}
-          </div>
-        </div>
-
-      </div> </div>
+      </div>
+    </div>
 
     <div class="modal fade" id="soldierModal" tabindex="-1" aria-hidden="true">
       <div class="modal-dialog modal-lg">
         <div class="modal-content">
-          <div class="modal-body text-center p-5">
-            <div class="spinner-border text-primary" role="status"></div>
-            <p>Зареждане на досие...</p>
-          </div>
+          <div class="modal-body text-center p-5"><div class="spinner-border text-primary"></div></div>
         </div>
       </div>
     </div>
 
     <script>
       document.addEventListener("DOMContentLoaded", function () {
-        
-        // --- 1. ЛОГИКА ЗА МАСОВИЯ ТАБ (НОВО) ---
+        // --- Filtering Logic ---
         const filterCompany = document.getElementById('filterCompany');
         const filterPlatoon = document.getElementById('filterPlatoon');
         const rows = document.querySelectorAll('.soldier-row');
@@ -419,46 +251,34 @@
             const cVal = filterCompany.value;
             const pVal = filterPlatoon.value;
             let count = 0;
-
             rows.forEach(row => {
                 const rComp = row.getAttribute('data-company');
                 const rPlat = row.getAttribute('data-platoon');
-
                 let show = true;
                 if (cVal !== 'all' && cVal !== rComp) show = false;
                 if (pVal !== 'all' && pVal !== rPlat) show = false;
-
-                if (show) {
-                    row.classList.remove('hidden');
-                    count++;
-                } else {
-                    row.classList.add('hidden');
-                    // Ако скриваме ред, махаме чекбокса, за да не го изберем без да искаме
-                    row.querySelector('.row-checkbox').checked = false; 
-                    row.classList.remove('selected-row');
-                }
+                
+                if (show) { row.classList.remove('hidden'); count++; }
+                else { row.classList.add('hidden'); row.querySelector('.row-checkbox').checked = false; row.classList.remove('selected-row'); }
             });
             visibleCountSpan.textContent = count;
-            selectAll.checked = false; // Ресет на "избери всички" при филтър
+            selectAll.checked = false;
         }
-
         filterCompany.addEventListener('change', filterTable);
         filterPlatoon.addEventListener('change', filterTable);
 
-        // Логика за "Избери всички ВИДИМИ"
+        // Select All Logic
         selectAll.addEventListener('change', function() {
             const isChecked = this.checked;
             rows.forEach(row => {
                 if (!row.classList.contains('hidden')) {
-                    const cb = row.querySelector('.row-checkbox');
-                    cb.checked = isChecked;
-                    if(isChecked) row.classList.add('selected-row');
-                    else row.classList.remove('selected-row');
+                    row.querySelector('.row-checkbox').checked = isChecked;
+                    if(isChecked) row.classList.add('selected-row'); else row.classList.remove('selected-row');
                 }
             });
         });
-
-        // Оцветяване на реда при клик върху чекбокса
+        
+        // Row Highlight Logic
         document.querySelectorAll('.row-checkbox').forEach(cb => {
             cb.addEventListener('change', function() {
                 if(this.checked) this.closest('tr').classList.add('selected-row');
@@ -466,69 +286,32 @@
             });
         });
 
-
-        // --- 2. ЛОГИКА ЗА МОДАЛНИЯ ПРОЗОРЕЦ (СТАРО) ---
-        var soldierModal = document.getElementById("soldierModal");
-        var modalContent = soldierModal.querySelector(".modal-content");
-        var bsModal = new bootstrap.Modal(soldierModal);
-
-        function bindForm() {
-          var form = document.getElementById("dutyForm");
-          if (form) {
-            form.addEventListener("submit", function (e) {
-              e.preventDefault();
-              var formData = new FormData(form);
-              var actionUrl = form.getAttribute("action");
-
-              fetch(actionUrl, {
-                method: "POST",
-                body: formData,
-                headers: { "X-Requested-With": "XMLHttpRequest" },
-              })
-                .then((response) => {
-                  if (response.redirected) window.location.reload();
-                  else return response.text();
-                })
-                .then((html) => {
-                  if (html) {
-                    modalContent.innerHTML = html;
-                    bindForm();
-                  }
-                })
-                .catch((error) => {
-                  modalContent.innerHTML = '<div class="modal-body text-danger">Грешка.</div>';
-                });
-            });
-          }
-        }
+        // Profile Modal Logic
+        var soldierModal = new bootstrap.Modal(document.getElementById("soldierModal"));
+        var modalContent = document.querySelector("#soldierModal .modal-content");
 
         document.body.addEventListener("click", function (e) {
           var target = e.target.closest(".open-profile");
           if (target) {
             e.preventDefault();
-            var url = target.getAttribute("data-url");
-            bsModal.show();
-            fetch(url)
-              .then((response) => response.text())
-              .then((html) => {
-                modalContent.innerHTML = html;
-                bindForm();
-              })
-              .catch((err) => {
-                modalContent.innerHTML = '<div class="modal-body text-danger">Грешка!</div>';
+            soldierModal.show();
+            fetch(target.getAttribute("data-url"))
+              .then(res => res.text())
+              .then(html => {
+                  modalContent.innerHTML = html;
+                  // Re-bind form submission if exists inside modal
+                  var form = document.getElementById("dutyForm");
+                  if(form) {
+                      form.addEventListener("submit", function(ev){
+                          ev.preventDefault();
+                          fetch(form.action, {method:'POST', body: new FormData(form), headers:{'X-Requested-With':'XMLHttpRequest'}})
+                          .then(r => r.redirected ? window.location.reload() : r.text())
+                          .then(h => { if(h) modalContent.innerHTML = h; });
+                      });
+                  }
               });
           }
         });
-
-        window.toggleAllAccordions = function () {
-          var allCollapses = document.querySelectorAll(".accordion-collapse");
-          var isAnyOpen = false;
-          allCollapses.forEach((el) => { if (el.classList.contains("show")) isAnyOpen = true; });
-          allCollapses.forEach((el) => {
-            var bsCollapse = new bootstrap.Collapse(el, { toggle: false });
-            if (isAnyOpen) bsCollapse.hide(); else bsCollapse.show();
-          });
-        };
       });
     </script>
   </body>

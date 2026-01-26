@@ -95,10 +95,7 @@
         <div
           class="col calendar-day p-2 {% if shifts_by_day|get_item:day %}has-duty{% endif %} {% if day == today.day and month == today.month and year == today.year %}today{% endif %}"
         >
-          <a
-            href="{% url 'roster_daily' %}?date={{ year }}-{{ month|stringformat:'02d' }}-{{ day|stringformat:'02d' }}"
-            class="fill-div"
-          >
+          <a href="{% url 'daily_roster' %}?date={{ year }}-{{ month|stringformat:'02d' }}-{{ day|stringformat:'02d' }}" class="fill-div">
             <div class="d-flex justify-content-between">
               <span class="day-number">{{ day }}</span>
               {% if shifts_by_day|get_item:day %}

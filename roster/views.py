@@ -75,11 +75,17 @@ def roster_view(request):
     return render(request, 'roster/daily_roster.html', context)
 
 def statistics_view(request):
-    # 1. Класация (сортирана по Курс, после по Точки)
-    leaderboard = Soldier.objects.filter(is_active=True).order_by('rank_group__priority', '-score')
+    # 1. Класация (Leaderboard)
+    # ВАЖНО: Сортираме ПЪРВО по име на курса, за да не се нацепват групите, ако приоритетите са еднакви!
+    # След това по точки (-score).
+    leaderboard = Soldier.objects.filter(is_active=True).select_related('rank_group').order_by(
+        'rank_group__priority', # Първо по важност (ако е настроено)
+        'rank_group__name',     # Второ по име (за да са групирани 1-ви, 2-ри и т.н.)
+        '-score'                # Трето по точки
+    )
     
     # 2. Списъци по роти 
-    # ВАЖНО: Тук добавяме .exclude(platoon='Млади'), за да не се дублират младите при старите!
+    # .exclude(platoon='Млади') маха младите от списъка на старите
     company_1 = Soldier.objects.filter(company='1', is_active=True).exclude(platoon='Млади').order_by('last_name')
     company_2 = Soldier.objects.filter(company='2', is_active=True).exclude(platoon='Млади').order_by('last_name')
 
@@ -89,8 +95,7 @@ def statistics_view(request):
     by_crew = Soldier.objects.filter(is_active=True).exclude(crew="").order_by('crew', 'last_name')
     by_class = Soldier.objects.filter(is_active=True).order_by('class_section', 'faculty_number')
     
-    # Данни за масовия таб
-    all_soldiers = Soldier.objects.filter(is_active=True).order_by('company', 'platoon', 'last_name')
+    # Форма за масовата отпуска
     batch_form = BatchLeaveForm()
 
     context = {
@@ -100,7 +105,7 @@ def statistics_view(request):
         'young_cadets': young_cadets,
         'by_crew': by_crew,
         'by_class': by_class,
-        'all_soldiers': all_soldiers,
+        'all_soldiers': leaderboard, # Използваме същия списък за масовата таблица
         'batch_form': batch_form,
     }
     return render(request, 'roster/statistics.html', context)
