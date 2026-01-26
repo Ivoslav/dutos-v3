@@ -98,6 +98,8 @@ class DutyShift(models.Model):
         verbose_name_plural = "График на нарядите"
         unique_together = ('date', 'soldier')
 
+# roster/models.py
+
 class Leave(models.Model):
     TYPE_CHOICES = [
         ('home', 'Домашен отпуск'),
@@ -112,6 +114,33 @@ class Leave(models.Model):
     end_date = models.DateField(verbose_name="Крайна дата")
     leave_type = models.CharField(max_length=20, choices=TYPE_CHOICES, default='home', verbose_name="Вид")
     reason = models.CharField(max_length=100, blank=True, verbose_name="Причина (опционално)")
+
+    def save(self, *args, **kwargs):
+        # 1. Преди да запишем отпуската, търсим конфликти в графика
+        # Трябва да направим import-а тук вътре, за да избегнем Circular Import грешка,
+        # ако DutyShift е дефиниран след Leave (макар че при теб е преди, застраховаме се).
+        from .models import DutyShift 
+
+        # Намираме всички наряди, които попадат в периода на отпуската
+        conflicting_shifts = DutyShift.objects.filter(
+            soldier=self.soldier,
+            date__gte=self.start_date,
+            date__lte=self.end_date
+        )
+
+        # 2. За всеки намерен конфликтен наряд:
+        for shift in conflicting_shifts:
+            # Връщаме точките на войника (тъй като нарядът пада)
+            soldier = shift.soldier
+            soldier.score -= shift.duty_type.weight
+            if soldier.score < 0: soldier.score = 0
+            soldier.save()
+            
+            # Изтриваме наряда
+            shift.delete()
+
+        # 3. Чак тогава записваме самата отпуска
+        super(Leave, self).save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.soldier.last_name} ({self.get_leave_type_display()})"

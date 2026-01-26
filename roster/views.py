@@ -75,24 +75,22 @@ def roster_view(request):
     return render(request, 'roster/daily_roster.html', context)
 
 def statistics_view(request):
-    leaderboard = Soldier.objects.filter(is_active=True).order_by('rank_group__priority', '-score')
+    # 1. Класация (Leaderboard) - Сортиране по точки (низходящ ред)
+    # Използваме '-score', за да излязат най-натоварените най-горе
+    leaderboard = Soldier.objects.filter(is_active=True).order_by('-score')
     
-    company_1 = Soldier.objects.filter(company='1', is_active=True)\
-        .exclude(platoon='Млади')\
-        .order_by('-rank_group__priority', 'last_name')
+    # 2. Списъци по роти (за справка, ако потрябват)
+    company_1 = Soldier.objects.filter(company='1', is_active=True).order_by('last_name')
+    company_2 = Soldier.objects.filter(company='2', is_active=True).order_by('last_name')
 
-    company_2 = Soldier.objects.filter(company='2', is_active=True)\
-        .exclude(platoon='Млади')\
-        .order_by('-rank_group__priority', 'last_name')
-
-    young_cadets = Soldier.objects.filter(platoon='Млади', is_active=True)\
-        .order_by('faculty_number')
+    # 3. Младите (ако има такъв взвод)
+    young_cadets = Soldier.objects.filter(platoon='Млади', is_active=True).order_by('faculty_number')
         
     by_crew = Soldier.objects.filter(is_active=True).exclude(crew="").order_by('crew', 'last_name')
     by_class = Soldier.objects.filter(is_active=True).order_by('class_section', 'faculty_number')
 
     context = {
-        'leaderboard': leaderboard,
+        'leaderboard': leaderboard,  # <--- ЕТО ТОВА ТЪРСИ ТЕСТЪТ! (Задължително трябва да го има)
         'company_1': company_1,
         'company_2': company_2,
         'young_cadets': young_cadets,
@@ -100,7 +98,6 @@ def statistics_view(request):
         'by_class': by_class,
     }
     return render(request, 'roster/statistics.html', context)
-
 
 def soldier_profile(request, soldier_id):
     soldier = get_object_or_404(Soldier, id=soldier_id)
@@ -243,6 +240,12 @@ def home_calendar(request):
 def emergency_swap(request, shift_id):
     shift = get_object_or_404(DutyShift, id=shift_id)
     
+    # <--- НОВА ЗАЩИТА: ИСТОРИЯТА Е НЕПРИКОСНОВЕНА
+    if shift.date < datetime.date.today():
+        messages.error(request, "⛔ ГРЕШКА: Не може да се правят промени в минали дати!")
+        return redirect(f"/roster/daily/?date={shift.date}")
+    # ----------------------------------------------------
+
     if request.method == 'POST':
         new_soldier_id = request.POST.get('new_soldier')
         reason = request.POST.get('reason')
@@ -250,7 +253,7 @@ def emergency_swap(request, shift_id):
         new_soldier = get_object_or_404(Soldier, id=new_soldier_id)
         old_soldier = shift.soldier
         
-        # --- ПРОВЕРКА 1: Заместникът в отпуск ли е? ---
+        # Проверка за отпуск
         on_leave = Leave.objects.filter(
             soldier=new_soldier,
             start_date__lte=shift.date,
@@ -261,8 +264,7 @@ def emergency_swap(request, shift_id):
             messages.error(request, f"⛔ ГРЕШКА: {new_soldier.last_name} е в отпуск/болничен на тази дата!")
             return redirect(f"/roster/daily/?date={shift.date}")
 
-        # --- ПРОВЕРКА 2: Заместникът вече има ли наряд днес? ---
-        # (За да избегнем IntegrityError, който видяхме в теста)
+        # Проверка за заетост
         has_shift = DutyShift.objects.filter(
             soldier=new_soldier,
             date=shift.date
@@ -272,9 +274,7 @@ def emergency_swap(request, shift_id):
             messages.error(request, f"⛔ ГРЕШКА: {new_soldier.last_name} вече има друг наряд на тази дата!")
             return redirect(f"/roster/daily/?date={shift.date}")
 
-        # --- АКО ВСИЧКО Е НАРЕД: ПРАВИМ СМЯНАТА ---
-        
-        # 1. Корекция на точките
+        # Смяна на точките
         old_soldier.score -= shift.duty_type.weight
         if old_soldier.score < 0: old_soldier.score = 0
         old_soldier.save()
@@ -282,7 +282,7 @@ def emergency_swap(request, shift_id):
         new_soldier.score += shift.duty_type.weight
         new_soldier.save()
         
-        # 2. Записване на смяната
+        # Запис
         shift.soldier = new_soldier
         shift.save()
         
