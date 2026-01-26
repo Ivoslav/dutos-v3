@@ -1,7 +1,7 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from datetime import timedelta # <--- ВАЖНО: Добави това!
 from .models import DutyShift, DutyType, Soldier, Leave # <--- Важно: Трябва да импортнем и Soldier!
-from .forms import DutyShiftForm
+from .forms import DutyShiftForm, BatchLeaveForm
 from django.db.models import Count, Q
 from django.contrib import messages
 import calendar
@@ -75,27 +75,33 @@ def roster_view(request):
     return render(request, 'roster/daily_roster.html', context)
 
 def statistics_view(request):
-    # 1. Класация (Leaderboard) - Сортиране по точки (низходящ ред)
-    # Използваме '-score', за да излязат най-натоварените най-горе
-    leaderboard = Soldier.objects.filter(is_active=True).order_by('-score')
+    # 1. Класация (сортирана по Курс, после по Точки)
+    leaderboard = Soldier.objects.filter(is_active=True).order_by('rank_group__priority', '-score')
     
-    # 2. Списъци по роти (за справка, ако потрябват)
-    company_1 = Soldier.objects.filter(company='1', is_active=True).order_by('last_name')
-    company_2 = Soldier.objects.filter(company='2', is_active=True).order_by('last_name')
+    # 2. Списъци по роти 
+    # ВАЖНО: Тук добавяме .exclude(platoon='Млади'), за да не се дублират младите при старите!
+    company_1 = Soldier.objects.filter(company='1', is_active=True).exclude(platoon='Млади').order_by('last_name')
+    company_2 = Soldier.objects.filter(company='2', is_active=True).exclude(platoon='Млади').order_by('last_name')
 
-    # 3. Младите (ако има такъв взвод)
+    # 3. Младите (само те)
     young_cadets = Soldier.objects.filter(platoon='Млади', is_active=True).order_by('faculty_number')
         
     by_crew = Soldier.objects.filter(is_active=True).exclude(crew="").order_by('crew', 'last_name')
     by_class = Soldier.objects.filter(is_active=True).order_by('class_section', 'faculty_number')
+    
+    # Данни за масовия таб
+    all_soldiers = Soldier.objects.filter(is_active=True).order_by('company', 'platoon', 'last_name')
+    batch_form = BatchLeaveForm()
 
     context = {
-        'leaderboard': leaderboard,  # <--- ЕТО ТОВА ТЪРСИ ТЕСТЪТ! (Задължително трябва да го има)
+        'leaderboard': leaderboard,
         'company_1': company_1,
         'company_2': company_2,
         'young_cadets': young_cadets,
         'by_crew': by_crew,
         'by_class': by_class,
+        'all_soldiers': all_soldiers,
+        'batch_form': batch_form,
     }
     return render(request, 'roster/statistics.html', context)
 
@@ -289,3 +295,38 @@ def emergency_swap(request, shift_id):
         messages.success(request, f"✅ Успешна смяна: {old_soldier.last_name} ➡️ {new_soldier.last_name}")
         
     return redirect(f"/roster/daily/?date={shift.date}")
+
+from django.views.decorators.http import require_POST
+
+@require_POST # Само POST заявки
+def save_batch_leave(request):
+    form = BatchLeaveForm(request.POST)
+    
+    if form.is_valid():
+        start_date = form.cleaned_data['start_date']
+        end_date = form.cleaned_data['end_date']
+        leave_type = form.cleaned_data['leave_type']
+        reason = form.cleaned_data['reason']
+        
+        # Взимаме ID-тата на избраните хора
+        soldier_ids = request.POST.getlist('selected_soldiers')
+        
+        count = 0
+        for s_id in soldier_ids:
+            soldier = get_object_or_404(Soldier, id=s_id)
+            
+            # Създаваме отпуската (Това автоматично ще изтрие нарядите благодарение на кода ни в models.py)
+            Leave.objects.create(
+                soldier=soldier,
+                start_date=start_date,
+                end_date=end_date,
+                leave_type=leave_type,
+                reason=reason
+            )
+            count += 1
+            
+        messages.success(request, f"✅ Успешно записани отпуски/награди на {count} военнослужещи!")
+    else:
+        messages.error(request, "⛔ Грешка в данните! Проверете датите.")
+        
+    return redirect('roster_stats')
