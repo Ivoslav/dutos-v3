@@ -113,26 +113,42 @@ def soldier_profile(request, soldier_id):
     form = DutyShiftForm(request.POST or None)
 
     if request.method == 'POST':
+        # 1. ЗАЩИТА ОТ "ЗОМБИТА" (Още преди валидацията на формата)
+        if not soldier.is_active: # <--- НОВА ЗАЩИТА 1
+             messages.error(request, "⛔ ГРЕШКА: Този военнослужещ е неактивен!")
+             return redirect('roster_stats') # Изхвърляме го веднага
+
         if form.is_valid():
             new_date = form.cleaned_data['date']
+            duty_type = form.cleaned_data['duty_type'] # Взимаме вида наряд от формата
             
+            # 2. ПРОВЕРКИ ЗА СЪВМЕСТИМОСТ (Leave, Shift, Rank)
+            
+            # А) Отпуск
             on_leave = Leave.objects.filter(
                 soldier=soldier,
                 start_date__lte=new_date,
                 end_date__gte=new_date
             ).exists()
 
+            # Б) Вече има наряд днес
             has_shift_today = DutyShift.objects.filter(
                 soldier=soldier, 
                 date=new_date
             ).exists()
 
+            # В) Умора (вчера)
             yesterday = new_date - timedelta(days=1)
             has_shift_yesterday = DutyShift.objects.filter(
                 soldier=soldier, 
                 date=yesterday
             ).exists()
 
+            # Г) РАНГОВА ЗАЩИТА (Съвпада ли званието?)
+            # Проверяваме дали rank_group на войника присъства в allowed_ranks на наряда
+            is_rank_allowed = duty_type.allowed_ranks.filter(id=soldier.rank_group.id).exists() # <--- НОВА ЗАЩИТА 2
+
+            # --- ВАЛИДАЦИЯ ---
             if on_leave:
                 form.add_error('date', '⛔ Грешка: Войникът е в отпуск на тази дата!')
             
@@ -142,7 +158,11 @@ def soldier_profile(request, soldier_id):
             elif has_shift_yesterday:
                 form.add_error('date', '⛔ Грешка: Войникът е уморен (наряд вчера)!')
 
+            elif not is_rank_allowed: # <--- АКО ЗВАНИЕТО НЕ ОТГОВАРЯ
+                form.add_error('duty_type', f'⛔ Грешка: Този наряд не е позволен за "{soldier.rank_group}"!')
+
             else:
+                # Всичко е точно -> ЗАПИСВАМЕ
                 shift = form.save(commit=False)
                 shift.soldier = soldier
                 shift.save()
@@ -150,7 +170,8 @@ def soldier_profile(request, soldier_id):
                 soldier.score += shift.duty_type.weight
                 soldier.save()
                 
-                return redirect('roster_stats')
+                messages.success(request, "✅ Нарядът е добавен успешно!")
+                return redirect('roster_stats') # Или където трябва да води
 
     context = {
         'soldier': soldier,
@@ -229,16 +250,42 @@ def emergency_swap(request, shift_id):
         new_soldier = get_object_or_404(Soldier, id=new_soldier_id)
         old_soldier = shift.soldier
         
+        # --- ПРОВЕРКА 1: Заместникът в отпуск ли е? ---
+        on_leave = Leave.objects.filter(
+            soldier=new_soldier,
+            start_date__lte=shift.date,
+            end_date__gte=shift.date
+        ).exists()
+        
+        if on_leave:
+            messages.error(request, f"⛔ ГРЕШКА: {new_soldier.last_name} е в отпуск/болничен на тази дата!")
+            return redirect(f"/roster/daily/?date={shift.date}")
+
+        # --- ПРОВЕРКА 2: Заместникът вече има ли наряд днес? ---
+        # (За да избегнем IntegrityError, който видяхме в теста)
+        has_shift = DutyShift.objects.filter(
+            soldier=new_soldier,
+            date=shift.date
+        ).exists()
+        
+        if has_shift:
+            messages.error(request, f"⛔ ГРЕШКА: {new_soldier.last_name} вече има друг наряд на тази дата!")
+            return redirect(f"/roster/daily/?date={shift.date}")
+
+        # --- АКО ВСИЧКО Е НАРЕД: ПРАВИМ СМЯНАТА ---
+        
+        # 1. Корекция на точките
         old_soldier.score -= shift.duty_type.weight
         if old_soldier.score < 0: old_soldier.score = 0
         old_soldier.save()
         
-        shift.soldier = new_soldier
-        shift.save()
-        
         new_soldier.score += shift.duty_type.weight
         new_soldier.save()
         
-        messages.success(request, f"🔄 Смяна успешна: {old_soldier.last_name} -> {new_soldier.last_name}")
+        # 2. Записване на смяната
+        shift.soldier = new_soldier
+        shift.save()
+        
+        messages.success(request, f"✅ Успешна смяна: {old_soldier.last_name} ➡️ {new_soldier.last_name}")
         
     return redirect(f"/roster/daily/?date={shift.date}")
