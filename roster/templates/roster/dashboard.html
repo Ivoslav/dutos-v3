@@ -1,0 +1,170 @@
+{% extends 'roster/base.html' %}
+
+{% block content %}
+<div class="container-fluid py-3">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold text-dark mb-0">⚓ КОМАНДЕН ПУЛТ</h2>
+            <p class="text-muted mb-0">ВВМУ "Н. Й. Вапцаров" • {{ today|date:"l, d F Y" }}</p>
+        </div>
+        <div>
+            <a href="{% url 'debug_panel' %}" class="btn btn-warning fw-bold shadow-sm">🛠️ Инструменти</a>
+            <a href="{% url 'daily_roster' %}" class="btn btn-primary fw-bold shadow-sm">📋 Пълен График</a>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100 border-start border-5 border-success">
+                <div class="card-body">
+                    <h6 class="text-uppercase text-muted small">Строеви състав</h6>
+                    <div class="d-flex align-items-baseline">
+                        <h1 class="display-5 fw-bold text-success mb-0">{{ present_count }}</h1>
+                        <span class="text-muted ms-2">/ {{ total_soldiers }}</span>
+                    </div>
+                    <small class="text-success">✅ Налице в момента</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100 border-start border-5 border-primary">
+                <div class="card-body">
+                    <h6 class="text-uppercase text-muted small">В Наряд</h6>
+                    <h1 class="display-5 fw-bold text-primary mb-0">{{ on_duty_today_count }}</h1>
+                    <small class="text-primary">🛡️ Изпълняват служба</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100 border-start border-5 border-warning">
+                <div class="card-body">
+                    <h6 class="text-uppercase text-muted small">Отсъстващи</h6>
+                    <h1 class="display-5 fw-bold text-warning mb-0">{{ on_leave_today_count }}</h1>
+                    <small class="text-muted">🏠 Отпуск / Командировка</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100 border-start border-5 border-{{ tomorrow_class }}">
+                <div class="card-body">
+                    <h6 class="text-uppercase text-muted small">Готовност за Утре</h6>
+                    <h3 class="fw-bold text-{{ tomorrow_class }} mb-0 mt-2">{{ tomorrow_status }}</h3>
+                    {% if not is_tomorrow_ready %}
+                    <form method="post" action="{% url 'debug_panel' %}" class="mt-2">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="generate_tomorrow">
+                        <button type="submit" class="btn btn-sm btn-outline-danger w-100">⚡ Генерирай Сега</button>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        
+        <div class="col-md-8">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-white fw-bold border-bottom">
+                    👮 Ключови фигури на длъжност днес
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Наряд</th>
+                                <th>Военнослужещ</th>
+                                <th>Рота/Взвод</th>
+                                <th>Действие</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for shift in key_shifts_today %}
+                            <tr>
+                                <td><span class="badge bg-dark">{{ shift.duty_type.name }}</span></td>
+                                <td>
+                                    <div class="fw-bold">{{ shift.soldier.rank_title }} {{ shift.soldier.last_name }}</div>
+                                </td>
+                                <td class="text-muted small">
+                                    {{ shift.soldier.company }} рота / {{ shift.soldier.platoon }} взв.
+                                </td>
+                                <td>
+                                    <a href="#" class="btn btn-sm btn-outline-secondary open-profile" 
+                                       data-url="{% url 'soldier_profile' shift.soldier.id %}">👤 Досие</a>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="4" class="text-center py-4 text-muted">Няма данни за днес.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="card-footer bg-white text-center">
+                    <a href="{% url 'daily_roster' %}" class="text-decoration-none">Виж пълния разход за деня &rarr;</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            
+            <div class="card shadow-sm border-0 mb-4 bg-danger text-white">
+                <div class="card-body text-center">
+                    <h5 class="fw-bold">🚨 ИЗВЪНРЕДНО ИЗВЕСТЯВАНЕ</h5>
+                    <p class="small opacity-75 mb-3">При сигнал "СБОР" използвай бутона по-долу за списък на личния състав.</p>
+                    <button class="btn btn-light text-danger fw-bold w-100">🔔 ОБЯВИ ТРЕВОГА</button>
+                </div>
+            </div>
+
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white fw-bold text-danger border-bottom">
+                    🤒 Болни / В Лазарет
+                </div>
+                <ul class="list-group list-group-flush">
+                    {% for leave in sick_today %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>{{ leave.soldier.last_name }}</strong>
+                            <div class="small text-muted">{{ leave.reason|default:"Заболяване" }}</div>
+                        </div>
+                        <span class="badge bg-danger rounded-pill">{{ leave.soldier.company }} рота</span>
+                    </li>
+                    {% empty %}
+                    <li class="list-group-item text-center text-muted py-3">Няма болни днес. ✅</li>
+                    {% endfor %}
+                </ul>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="soldierModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-body text-center p-5"><div class="spinner-border text-primary"></div></div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Копираме скрипта за модалния прозорец, за да работи и тук
+document.addEventListener("DOMContentLoaded", function() {
+    var soldierModal = new bootstrap.Modal(document.getElementById("soldierModal"));
+    var modalContent = document.querySelector("#soldierModal .modal-content");
+
+    document.body.addEventListener("click", function (e) {
+        var target = e.target.closest(".open-profile");
+        if (target) {
+            e.preventDefault();
+            soldierModal.show();
+            fetch(target.getAttribute("data-url"))
+                .then(res => res.text())
+                .then(html => { modalContent.innerHTML = html; });
+        }
+    });
+});
+</script>
+{% endblock %}

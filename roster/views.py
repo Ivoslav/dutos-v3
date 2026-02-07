@@ -1,11 +1,68 @@
+from django.core.management import call_command
+from io import StringIO
+from django.contrib.auth.decorators import user_passes_test
 from django.shortcuts import render, get_object_or_404, redirect
-from datetime import timedelta # <--- ВАЖНО: Добави това!
-from .models import DutyShift, DutyType, Soldier, Leave # <--- Важно: Трябва да импортнем и Soldier!
+from datetime import timedelta
+from .models import DutyShift, DutyType, Soldier, Leave
 from .forms import DutyShiftForm, BatchLeaveForm
 from django.db.models import Count, Q
 from django.contrib import messages
 import calendar
 import datetime
+
+def dashboard_view(request):
+    today = datetime.date.today()
+    tomorrow = today + datetime.timedelta(days=1)
+
+    # 1. ОСНОВНИ БРОЯЧИ (KPIs)
+    total_soldiers = Soldier.objects.filter(is_active=True).count()
+    
+    # Колко са наряд днес
+    on_duty_today_count = DutyShift.objects.filter(date=today).count()
+    
+    # Колко са в отпуск/болничен днес (активни leave записи)
+    on_leave_today_count = Leave.objects.filter(
+        start_date__lte=today, 
+        end_date__gte=today
+    ).count()
+
+    # Изчисляваме наличните (Тотал - (Наряд + Отсъстващи))
+    present_count = total_soldiers - (on_duty_today_count + on_leave_today_count)
+
+    # 2. ВАЖНИТЕ НАРЯДИ ДНЕС (Сортирани по тежест - ДБПК най-горе)
+    key_shifts_today = DutyShift.objects.filter(date=today).select_related('soldier', 'duty_type').order_by('-duty_type__weight')[:5]
+
+    # 3. ПРОВЕРКА ЗА УТРЕ (Има ли график?)
+    is_tomorrow_ready = DutyShift.objects.filter(date=tomorrow).exists()
+    tomorrow_missing_count = 0
+    if not is_tomorrow_ready:
+        tomorrow_status = "⚠️ НЯМА ГРАФИК"
+        tomorrow_class = "danger"
+    else:
+        tomorrow_count = DutyShift.objects.filter(date=tomorrow).count()
+        tomorrow_status = f"✅ Готов ({tomorrow_count} наряд)"
+        tomorrow_class = "success"
+
+    # 4. БЪРЗ ПОГЛЕД КЪМ БОЛНИТЕ (За сводката)
+    sick_today = Leave.objects.filter(
+        start_date__lte=today, 
+        end_date__gte=today,
+        leave_type='sick'
+    ).select_related('soldier')
+
+    context = {
+        'today': today,
+        'total_soldiers': total_soldiers,
+        'on_duty_today_count': on_duty_today_count,
+        'on_leave_today_count': on_leave_today_count,
+        'present_count': present_count,
+        'key_shifts_today': key_shifts_today,
+        'is_tomorrow_ready': is_tomorrow_ready,
+        'tomorrow_status': tomorrow_status,
+        'tomorrow_class': tomorrow_class,
+        'sick_today': sick_today,
+    }
+    return render(request, 'roster/dashboard.html', context)
 
 def roster_view(request):
     date_str = request.GET.get('date')
@@ -335,3 +392,41 @@ def save_batch_leave(request):
         messages.error(request, "⛔ Грешка в данните! Проверете датите.")
         
     return redirect('roster_stats')
+
+@user_passes_test(lambda u: u.is_superuser) # Само за Админи!
+def debug_panel(request):
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        out = StringIO() # Тук ще ловим отговора от терминала
+        
+        try:
+            if action == 'seed_data':
+                call_command('seed_data', stdout=out)
+                messages.success(request, "✅ Армията е презаредена успешно!")
+            
+            elif action == 'create_duties':
+                call_command('create_duties', stdout=out) # Скриптът от предния ни разговор
+                messages.success(request, "✅ Видовете наряди са създадени!")
+
+            elif action == 'fix_duties':
+                call_command('fix_duties', stdout=out)
+                messages.success(request, "✅ Правилата за наряди са оправени!")
+            
+            elif action == 'generate_today':
+                today = datetime.date.today().strftime('%Y-%m-%d')
+                call_command('generate_roster', today, stdout=out)
+                messages.success(request, f"✅ Графикът за днес ({today}) е генериран!")
+
+            elif action == 'generate_tomorrow':
+                tomorrow = (datetime.date.today() + datetime.timedelta(days=1)).strftime('%Y-%m-%d')
+                call_command('generate_roster', tomorrow, stdout=out)
+                messages.success(request, f"✅ Графикът за утре ({tomorrow}) е генериран!")
+
+        except Exception as e:
+            messages.error(request, f"❌ ГРЕШКА: {str(e)}")
+        
+        messages.info(request, out.getvalue())
+
+        return redirect('debug_panel')
+
+    return render(request, 'roster/debug_tools.html')
