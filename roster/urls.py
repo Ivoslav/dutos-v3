@@ -15,4 +15,7 @@ urlpatterns = [
     path('soldier/<int:soldier_id>/', views.soldier_profile, name='soldier_profile'),
     path('swap/<int:shift_id>/', views.emergency_swap, name='emergency_swap'),
     path('debug/', views.debug_panel, name='debug_panel'),
+    path('emergency-print/', views.emergency_list, name='emergency_print'),
+    path('alert/post/', views.post_announcement, name='post_announcement'),
+    path('alert/dismiss/', views.dismiss_announcement, name='dismiss_announcement'),
 ]

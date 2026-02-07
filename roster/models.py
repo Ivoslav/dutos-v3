@@ -54,6 +54,7 @@ class Soldier(models.Model):
     
     class_section = models.CharField(max_length=20, verbose_name="Класно отделение", blank=True, help_text="Попълва се автоматично от Фак. номер")
     crew = models.CharField(max_length=50, verbose_name="Екипаж", blank=True)
+    phone = models.CharField(max_length=20, blank=True, verbose_name="Телефон", help_text="За оповестяване")
 
     score = models.IntegerField(default=0, verbose_name="Натрупани точки")
     is_active = models.BooleanField(default=True, verbose_name="Активен")
@@ -144,3 +145,16 @@ class Leave(models.Model):
 
     def __str__(self):
         return f"{self.soldier.last_name} ({self.get_leave_type_display()})"
+    
+class Announcement(models.Model):
+    title = models.CharField(max_length=100, verbose_name="Заглавие")
+    message = models.TextField(verbose_name="Съобщение")
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_active = models.BooleanField(default=True, verbose_name="Активно")
+
+    def __str__(self):
+        return self.title
+    
+    class Meta:
+        verbose_name = "Извънредно съобщение"
+        verbose_name_plural = "Извънредни съобщения"

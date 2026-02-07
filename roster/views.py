@@ -3,7 +3,7 @@ from io import StringIO
 from django.contrib.auth.decorators import user_passes_test
 from django.shortcuts import render, get_object_or_404, redirect
 from datetime import timedelta
-from .models import DutyShift, DutyType, Soldier, Leave
+from .models import Announcement, DutyShift, DutyType, Soldier, Leave, Announcement # добави Announcement
 from .forms import DutyShiftForm, BatchLeaveForm
 from django.db.models import Count, Q
 from django.contrib import messages
@@ -50,6 +50,7 @@ def dashboard_view(request):
         leave_type='sick'
     ).select_related('soldier')
 
+    active_alert = Announcement.objects.filter(is_active=True).order_by('-created_at').first()
     context = {
         'today': today,
         'total_soldiers': total_soldiers,
@@ -61,6 +62,7 @@ def dashboard_view(request):
         'tomorrow_status': tomorrow_status,
         'tomorrow_class': tomorrow_class,
         'sick_today': sick_today,
+        'active_alert': active_alert,
     }
     return render(request, 'roster/dashboard.html', context)
 
@@ -430,3 +432,31 @@ def debug_panel(request):
         return redirect('debug_panel')
 
     return render(request, 'roster/debug_tools.html')
+
+def emergency_list(request):
+    soldiers = Soldier.objects.filter(is_active=True).order_by('company', 'platoon', 'last_name')
+    
+    context = {
+        'soldiers': soldiers,
+        # ПРОМЯНАТА Е ТУК: Ползваме .now(), а не .today()
+        'today': datetime.datetime.now(), 
+    }
+    return render(request, 'roster/emergency_print.html', context)
+
+@user_passes_test(lambda u: u.is_superuser)
+def post_announcement(request):
+    if request.method == 'POST':
+        title = request.POST.get('title')
+        message = request.POST.get('message')
+        # Деактивираме старите, за да има само едно активно
+        Announcement.objects.filter(is_active=True).update(is_active=False)
+        # Създаваме новото
+        Announcement.objects.create(title=title, message=message, is_active=True)
+        messages.warning(request, "🚨 ТРЕВОГАТА Е ОБЯВЕНА УСПЕШНО!")
+    return redirect('roster_home')
+
+@user_passes_test(lambda u: u.is_superuser)
+def dismiss_announcement(request):
+    Announcement.objects.filter(is_active=True).update(is_active=False)
+    messages.success(request, "✅ Тревогата е отменена.")
+    return redirect('roster_home')
