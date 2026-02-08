@@ -448,10 +448,17 @@ def post_announcement(request):
     if request.method == 'POST':
         title = request.POST.get('title')
         message = request.POST.get('message')
-        # Деактивираме старите, за да има само едно активно
+        target = request.POST.get('target') # <--- ВАЖНО
+        
         Announcement.objects.filter(is_active=True).update(is_active=False)
-        # Създаваме новото
-        Announcement.objects.create(title=title, message=message, is_active=True)
+        
+        # Записваме и target, за да е доволна базата
+        Announcement.objects.create(
+            title=title, 
+            message=message, 
+            target=target, 
+            is_active=True
+        )
         messages.warning(request, "🚨 ТРЕВОГАТА Е ОБЯВЕНА УСПЕШНО!")
     return redirect('roster_home')
 

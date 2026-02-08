@@ -21,8 +21,23 @@ class Command(BaseCommand):
             key = name.split("-")[0] 
             active_courses[key] = course_obj
 
-        first_names = ["Иван", "Петър", "Георги", "Димитър", "Николай", "Тодор", "Александър", "Виктор", "Мартин", "Даниел", "Борис", "Калоян", "Стефан", "Валери"]
-        last_names = ["Иванов", "Петров", "Георгиев", "Димитров", "Стоянов", "Андреев", "Михайлов", "Попов", "Колев", "Николов", "Василев", "Тодоров", "Маринов"]
+        # --- РАЗШИРЕН СПИСЪК С ИМЕНА ---
+        first_names = [
+            "Иван", "Петър", "Георги", "Димитър", "Николай", "Тодор", "Александър", "Виктор", 
+            "Мартин", "Даниел", "Борис", "Калоян", "Стефан", "Валери", "Христо", "Красимир",
+            "Пламен", "Йордан", "Атанас", "Валентин", "Васил", "Стоян", "Борислав", "Кирил",
+            "Методи", "Андрей", "Антон", "Филип", "Симеон", "Владимир", "Емил", "Богомил"
+        ]
+        
+        last_names = [
+            "Иванов", "Петров", "Георгиев", "Димитров", "Стоянов", "Андреев", "Михайлов", 
+            "Николов", "Василев", "Тодоров", "Маринов", "Христов", "Ангелов", "Илиев", 
+            "Йорданов", "Колев", "Петков", "Симеонов", "Златев", "Радев", "Павлов", 
+            "Атанасов", "Стефанов", "Попов", "Григоров", "Минев", "Желев", "Вълков",
+            "Караиванов", "Добрев", "Ковачев", "Узунов", "Миланов", "Костов", "Игнатов",
+            "Богомилов", "Дончев", "Хаджиев", "Владев", "Манолов", "Стайков", "Ганев",
+            "Танев", "Русев", "Ненов", "Димов", "Кръстев", "Захариев", "Цветков", "Янков"
+        ]
         
         # СПИСЪЦИ
         specs_vms = ['101', '102', '103', '110', '181'] # ВМС
@@ -59,15 +74,15 @@ class Command(BaseCommand):
             fac_suffix = ""
 
             if year == "1":
-                # 1-ВИ КУРС: Винаги са "Млади", независимо дали са медици или ВМС
+                # 1-ВИ КУРС
                 rank = "Курсант"
-                platoon = "Млади" # Специален статус
-                fac_prefix = base_spec + "4" # 1064 или 1014
+                platoon = "Млади"
+                fac_prefix = base_spec + "4"
                 fac_suffix = "251"
 
             elif year == "2":
                 rank = "Ст. II ст."
-                platoon = random.choice(possible_platoons) # 3/4 за медици, 1/2 за ВМС
+                platoon = random.choice(possible_platoons)
                 fac_prefix = base_spec
                 fac_suffix = "241"
 
@@ -75,11 +90,8 @@ class Command(BaseCommand):
                 rank = "Ст. I ст."
                 platoon = random.choice(possible_platoons)
                 fac_suffix = "231"
-                
-                # Специалният отряд 109 (Само за ВМС в 1-ва рота)
                 if not is_medic and random.random() < 0.15: 
                     fac_prefix = "109"
-                    # Те са си ВМС, така че рота 1, отряд 1/2, екипаж 1-10 си остават
                 else:
                     fac_prefix = base_spec
 
@@ -102,10 +114,11 @@ class Command(BaseCommand):
             if Soldier.objects.filter(faculty_number=full_fac_number).exists():
                 continue
 
-            # Екипаж: Създаваме стринг "Екипаж X"
-            # Даваме екипаж на всички от горните курсове, а на 1-ви курс - 50% шанс
             has_crew = True if year != "1" else (random.random() > 0.5)
             crew_name = f"Екипаж {crew_num}" if has_crew else ""
+
+            # Създаване на телефон (произволен)
+            phone_num = f"08{random.choice(['7', '8', '9'])}{random.randint(1000000, 9999999)}"
 
             Soldier.objects.create(
                 first_name=random.choice(first_names),
@@ -116,8 +129,9 @@ class Command(BaseCommand):
                 company=company,
                 platoon=platoon,
                 crew=crew_name,
+                phone=phone_num,
                 score=random.randint(0, 5)
             )
             created_count += 1
 
-        self.stdout.write(self.style.SUCCESS(f'✅ Готово! Армията е разделена: ВМС (1-ва рота/1-10 ек.), Медици (2-ра рота/11-16 ек.).'))
+        self.stdout.write(self.style.SUCCESS(f'✅ Готово! Армията е обновена с по-разнообразни имена.'))

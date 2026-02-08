@@ -65,12 +65,52 @@ class Soldier(models.Model):
                         
         super(Soldier, self).save(*args, **kwargs)
 
-    def __str__(self):
-        return f"{self.rank_title} {self.last_name} ({self.faculty_number})"
+# В класа Soldier:
+    @property
+    def smart_name(self):
+        clashes = Soldier.objects.filter(last_name=self.last_name, is_active=True).exclude(pk=self.pk)
+        if not clashes.exists():
+            return self.last_name
 
+        my_first = self.first_name
+        for i in range(1, len(my_first) + 1):
+            prefix = my_first[:i]
+            is_unique = True
+            for other in clashes:
+                if other.first_name.startswith(prefix):
+                    is_unique = False
+                    break
+            if is_unique:
+                return f"{self.last_name} {prefix}."
+        return f"{self.last_name} {self.first_name}"
+
+    def __str__(self):
+        # Промени този ред да ползва smart_name
+        return f"{self.rank_title} {self.smart_name} ({self.faculty_number})"
+
+# Най-долу във файла, замени Announcement с това:
+class Announcement(models.Model):
+    TARGET_CHOICES = [
+        ('all', '📢 ВСИЧКИ'),
+        ('1', '⚓ 1-ва Рота'),
+        ('2', '⚕️ 2-ра Рота'),
+        ('young', '👶 Млади Курсанти'),
+        ('staff', '⭐ Щаб / Офицери'),
+    ]
+
+    title = models.CharField(max_length=100, verbose_name="Заглавие")
+    message = models.TextField(verbose_name="Съобщение")
+    # ТОВА ПОЛЕ Е ВИНОВНИКА ЗА ГРЕШКАТА - ТРЯБВА ДА ГО ИМА:
+    target = models.CharField(max_length=10, choices=TARGET_CHOICES, default='all', verbose_name="Получател")
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_active = models.BooleanField(default=True, verbose_name="Активно")
+
+    def __str__(self):
+        return f"[{self.get_target_display()}] {self.title}"
+    
     class Meta:
-        verbose_name = "Военнослужещ"
-        verbose_name_plural = "Военнослужещи"
+        verbose_name = "Извънредно съобщение"
+        verbose_name_plural = "Извънредни съобщения"
 
 class DutyType(models.Model):
     name = models.CharField(max_length=100)
@@ -147,14 +187,23 @@ class Leave(models.Model):
         return f"{self.soldier.last_name} ({self.get_leave_type_display()})"
     
 class Announcement(models.Model):
+    TARGET_CHOICES = [
+        ('all', '📢 ВСИЧКИ'),
+        ('1', '⚓ 1-ва Рота'),
+        ('2', '⚕️ 2-ра Рота'),
+        ('young', '👶 Млади Курсанти'),
+        ('staff', '⭐ Щаб / Офицери'),
+    ]
+
     title = models.CharField(max_length=100, verbose_name="Заглавие")
     message = models.TextField(verbose_name="Съобщение")
+    target = models.CharField(max_length=10, choices=TARGET_CHOICES, default='all', verbose_name="Получател")
     created_at = models.DateTimeField(auto_now_add=True)
     is_active = models.BooleanField(default=True, verbose_name="Активно")
 
     def __str__(self):
-        return self.title
-    
+        return f"[{self.get_target_display()}] {self.title}"
+
     class Meta:
         verbose_name = "Извънредно съобщение"
         verbose_name_plural = "Извънредни съобщения"

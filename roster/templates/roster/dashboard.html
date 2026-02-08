@@ -13,22 +13,25 @@
         </div>
     </div>
     {% if active_alert %}
-<div class="alert alert-danger border-danger border-3 shadow mb-4" role="alert">
-    <div class="d-flex justify-content-between align-items-center">
-        <div>
-            <h3 class="alert-heading fw-bold mb-1">🚨 {{ active_alert.title }}</h3>
-            <p class="mb-0 fs-5">{{ active_alert.message }}</p>
-            <small class="text-muted">{{ active_alert.created_at|date:"d.m.Y H:i" }}</small>
+    <div class="alert alert-danger border-danger border-3 shadow mb-4" role="alert">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <div class="d-flex align-items-center gap-2 mb-1">
+                    <span class="badge bg-dark text-uppercase">{{ active_alert.get_target_display }}</span>
+                    <h3 class="alert-heading fw-bold mb-0">🚨 {{ active_alert.title }}</h3>
+                </div>
+                <p class="mb-0 fs-5">{{ active_alert.message }}</p>
+                <small class="text-muted">{{ active_alert.created_at|date:"d.m.Y H:i" }}</small>
+            </div>
+            {% if user.is_superuser %}
+            <form action="{% url 'dismiss_announcement' %}" method="post">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-danger fw-bold">🔕 ОТМЕНИ</button>
+            </form>
+            {% endif %}
         </div>
-        {% if user.is_superuser %}
-        <form action="{% url 'dismiss_announcement' %}" method="post">
-            {% csrf_token %}
-            <button type="submit" class="btn btn-danger fw-bold">🔕 ОТМЕНИ</button>
-        </form>
-        {% endif %}
     </div>
-</div>
-{% endif %}
+    {% endif %}
 
     <div class="row g-3 mb-4">
         <div class="col-md-3">
@@ -103,7 +106,7 @@
                             <tr>
                                 <td><span class="badge bg-dark">{{ shift.duty_type.name }}</span></td>
                                 <td>
-                                    <div class="fw-bold">{{ shift.soldier.rank_title }} {{ shift.soldier.last_name }}</div>
+                                    {{ shift.soldier.rank_title }} {{ shift.soldier.smart_name }}</div>
                                 </td>
                                 <td class="text-muted small">
                                     {{ shift.soldier.company }} рота / {{ shift.soldier.platoon }} взв.
@@ -138,19 +141,18 @@
                 <form action="{% url 'post_announcement' %}" method="post">
                     {% csrf_token %}
                     <div class="mb-2">
-                        <input type="text" name="title" class="form-control form-control-sm mb-2" placeholder="Заглавие (напр. СБОР)" required>
-                        <textarea name="message" class="form-control form-control-sm" rows="2" placeholder="Текст на съобщението..." required></textarea>
+                        <select name="target" class="form-select form-select-sm mb-2 fw-bold text-danger">
+                            <option value="all">📢 ДО ВСИЧКИ (ТРЕВОГА)</option>
+                            <option value="1">⚓ САМО 1-ва Рота</option>
+                            <option value="2">⚕️ САМО 2-ра Рота</option>
+                            <option value="young">👶 САМО Млади Курсанти</option>
+                            <option value="staff">⭐ САМО Офицери/Щаб</option>
+                        </select>
+
+                        <input type="text" name="title" class="form-control form-control-sm mb-2" placeholder="Заглавие" required>
+                        <textarea name="message" class="form-control form-control-sm" rows="2" placeholder="Текст..." required></textarea>
                     </div>
                     <button type="submit" class="btn btn-light text-danger fw-bold w-100">🚀 ПУСНИ СЪОБЩЕНИЕ</button>
-                </form>
-                <div class="mt-2 text-center">
-                    <a href="{% url 'emergency_print' %}" target="_blank" class="text-white small text-decoration-underline">Или принтирай списък с телефони</a>
-                </div>
-            {% else %}
-                <p class="small opacity-75">В момента има активно съобщение на екраните на всички потребители.</p>
-                <form action="{% url 'dismiss_announcement' %}" method="post">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn-light text-dark fw-bold w-100">🔕 СПРИ ОПОВЕСТЯВАНЕТО</button>
                 </form>
             {% endif %}
         </div>
