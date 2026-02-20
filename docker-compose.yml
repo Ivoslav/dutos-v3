@@ -7,7 +7,6 @@ services:
     restart: always
     environment:
       - POSTGRES_DB=${DB_NAME}
-      # dutos_db, dutos_user, dutos_pass --- IGNORE ---
       - POSTGRES_USER=${DB_USER}
       - POSTGRES_PASSWORD=${DB_PASSWORD}
     ports:
