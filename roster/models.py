@@ -27,8 +27,33 @@ PLATOON_CHOICES = [
 COMPANY_CHOICES = [
     ('1', '1-ва Рота'),
     ('2', '2-ра Рота'),
+    ('Млади', 'Млади курсанти'),
     ('Щаб', 'Щаб'),
 ]
+
+POSITION_CHOICES = [
+    # --- БАЗОВ СЪСТАВ ---
+    ('Редови', 'Редови състав'),
+
+    # --- 1-ВИ КУРС (Взводна организация) ---
+    ('КО', 'Командир на отделение'),
+    ('ЗКВ', 'Заместник командир на взвод'),
+    ('КВД', 'Командир на взвод дубльор'),
+
+    # --- 2-5 КУРС (Корабна/Екипажна организация) ---
+    ('ЕК', 'Екипажен командир'),
+    ('ЗЕК', 'Зам. екипажен командир'),
+    ('ОК', 'Отряден командир'),
+    ('ЗОК', 'Зам. отряден командир'),
+    ('ДК', 'Дивизионен командир'),
+    ('ЗДК', 'Зам. дивизионен командир'),
+
+    # --- ОФИЦЕРИ / ПОСТОЯНЕН СЪСТАВ ---
+    ('КВ', 'Командир на взвод (Офицер)'),
+    ('КР', 'Командир на рота (Офицер)'),
+    ('КомБат', 'Командир на батальон (Офицер)'),
+]
+
 
 class CourseOrRank(models.Model):
     name = models.CharField(max_length=50, unique=True, verbose_name="Име на група/Курс")
@@ -47,6 +72,7 @@ class Soldier(models.Model):
     birth_date = models.DateField(verbose_name="Дата на раждане (ДД.ММ.ГГГГ)", null=True, blank=True)
     
     rank_title = models.CharField(max_length=50, choices=RANK_CHOICES, default='Курсант', verbose_name="Звание")
+    position = models.CharField(max_length=15, choices=POSITION_CHOICES, default='Редови', verbose_name="Длъжност")
     rank_group = models.ForeignKey(CourseOrRank, on_delete=models.CASCADE, verbose_name="Курс (Басейн за наряди)")
     
     company = models.CharField(max_length=10, choices=COMPANY_CHOICES, default='1', verbose_name="Рота")
@@ -58,7 +84,7 @@ class Soldier(models.Model):
 
     score = models.IntegerField(default=0, verbose_name="Натрупани точки")
     is_active = models.BooleanField(default=True, verbose_name="Активен")
-
+    
     def save(self, *args, **kwargs):
         if self.faculty_number and len(self.faculty_number) > 2:
             self.class_section = self.faculty_number[:-2]

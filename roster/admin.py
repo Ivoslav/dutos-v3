@@ -5,24 +5,14 @@ from .models import Soldier, DutyType, DutyShift, Leave
 @admin.register(Soldier)
 class SoldierAdmin(admin.ModelAdmin):
     # Какво се вижда в списъка (Колони)
-    list_display = ('rank_title', 'last_name', 'faculty_number', 'company', 'platoon', 'score', 'is_active')
-    
+    list_display = ('rank_title', 'last_name', 'faculty_number', 'company', 'platoon', 'position', 'score', 'is_active')    
     # Филтри отдясно (Много полезно!)
-    list_filter = ('company', 'platoon', 'rank_group', 'is_active')
+    list_filter = ('company', 'platoon', 'rank_group', 'position', 'is_active')
     
-    # Търсачка (Търси по име и факултетен номер)
     search_fields = ('last_name', 'faculty_number')
-    
-    # Подреждане по подразбиране
     ordering = ('rank_group__priority', 'last_name')
-    
-    # Възможност да редактираш точките директно от списъка (без да отваряш профила)
     list_editable = ('score', 'is_active')
-    
-    # Колко реда да показва на страница
     list_per_page = 50
-
-    # Екстра: Масово действие "Нулирай точките" (за начало на месец/година)
     actions = ['reset_points']
 
     @admin.action(description='🔄 Нулирай точките на избраните')

@@ -11,6 +11,11 @@
         <div>
             <div class="text-muted small">Факултетен № / Взвод</div>
             <strong>{{ soldier.faculty_number }} | {{ soldier.platoon }} взвод</strong>
+            
+            {% if soldier.position != 'Редови' %}
+                <div class="mt-1"><span class="badge bg-info text-dark shadow-sm">⭐ {{ soldier.get_position_display }}</span></div>
+            {% endif %}
+            
         </div>
         <div class="text-end">
             <div class="text-muted small">Натовареност</div>

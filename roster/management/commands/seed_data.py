@@ -68,46 +68,51 @@ class Command(BaseCommand):
                 crew_num = random.randint(1, 10)     # Екипажи 1-10
 
             # --- 2. НАСТРОЙКИ СПОРЕД КУРСА ---
-            rank = ""
-            platoon = "" # Избираме крайното тук
-            fac_prefix = ""
-            fac_suffix = ""
+            rank = ""; platoon = ""; fac_prefix = ""; fac_suffix = ""; position = "Редови"
 
-            if year == "1":
-                # 1-ВИ КУРС
+            if year == "1": 
+                company = "Млади"
+                platoon = "Млади" 
                 rank = "Курсант"
-                platoon = "Млади"
                 fac_prefix = base_spec + "4"
                 fac_suffix = "251"
+                
+            elif year == "2": 
+                rank = "Ст. II ст."; platoon = random.choice(possible_platoons); fac_prefix = base_spec; fac_suffix = "241"
+                if random.random() < 0.10: position = "ЗЕК" # 10% шанс да е Зам. екипажен
 
-            elif year == "2":
-                rank = "Ст. II ст."
-                platoon = random.choice(possible_platoons)
-                fac_prefix = base_spec
-                fac_suffix = "241"
+            elif year == "3": 
+                rank = "Ст. I ст."; platoon = random.choice(possible_platoons); fac_suffix = "231"; 
+                fac_prefix = "109" if not is_medic and random.random() < 0.15 else base_spec
+                
+                # КО-та са от 3-ти курс
+                rnd = random.random()
+                if rnd < 0.15: position = "КО"
+                elif rnd < 0.20: position = "ЗОК"
 
-            elif year == "3":
-                rank = "Ст. I ст."
-                platoon = random.choice(possible_platoons)
-                fac_suffix = "231"
-                if not is_medic and random.random() < 0.15: 
-                    fac_prefix = "109"
+            elif year == "4": 
+                rank = "Гл. старшина"; platoon = random.choice(possible_platoons); fac_suffix = "221"; fac_prefix = base_spec
+                
+                # ЗКВ и КВД са от 4-ти курс
+                rnd = random.random()
+                if rnd < 0.10: position = "ЗКВ"
+                elif rnd < 0.20: position = "КВД"
+                elif rnd < 0.25: position = "ОК"
+
+            elif year == "5": 
+                platoon = random.choice(possible_platoons); fac_suffix = "211"; fac_prefix = base_spec
+                
+                # Тук слагаме Офицерските кандидати (КВ) и старшите командири
+                rnd = random.random()
+                if rnd < 0.10:
+                    rank = "Оф. кандидат"
+                    position = "КВ"
                 else:
-                    fac_prefix = base_spec
+                    rank = "Мичман"
+                    if rnd < 0.20: position = "КВД"
+                    elif rnd < 0.30: position = "ЕК"
+                    elif rnd < 0.35: position = "ДК"
 
-            elif year == "4":
-                rank = "Гл. старшина"
-                platoon = random.choice(possible_platoons)
-                fac_suffix = "221"
-                fac_prefix = base_spec
-
-            elif year == "5":
-                rank = "Мичман"
-                platoon = random.choice(possible_platoons)
-                fac_suffix = "211"
-                fac_prefix = base_spec
-
-            # Сглобяване на номера
             student_num = f"{random.randint(1, 35):02d}"
             full_fac_number = f"{fac_prefix}-{fac_suffix}{student_num}"
 
@@ -128,6 +133,7 @@ class Command(BaseCommand):
                 rank_group=course_obj,
                 company=company,
                 platoon=platoon,
+                position=position,
                 crew=crew_name,
                 phone=phone_num,
                 score=random.randint(0, 5)

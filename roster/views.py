@@ -104,7 +104,7 @@ def roster_view(request):
     leave_map = {l.soldier_id: l for l in leaves}
 
     for s in all_soldiers:
-        if s.platoon == 'Млади': group_key = 'young'
+        if s.company == 'Млади': group_key = 'young'
         elif s.company == '1': group_key = '1'
         elif s.company == '2': group_key = '2'
         else: continue
@@ -145,11 +145,13 @@ def statistics_view(request):
     
     # 2. Списъци по роти 
     # .exclude(platoon='Млади') маха младите от списъка на старите
-    company_1 = Soldier.objects.filter(company='1', is_active=True).exclude(platoon='Млади').order_by('last_name')
-    company_2 = Soldier.objects.filter(company='2', is_active=True).exclude(platoon='Млади').order_by('last_name')
+    # 2. Списъци по роти 
+    # Вече няма нужда от .exclude(platoon='Млади'), защото са в отделна рота!
+    company_1 = Soldier.objects.filter(company='1', is_active=True).order_by('last_name')
+    company_2 = Soldier.objects.filter(company='2', is_active=True).order_by('last_name')
 
-    # 3. Младите (само те)
-    young_cadets = Soldier.objects.filter(platoon='Млади', is_active=True).order_by('faculty_number')
+    # 3. Младите (само те) - вече ги търсим по company
+    young_cadets = Soldier.objects.filter(company='Млади', is_active=True).order_by('faculty_number')
         
     by_crew = Soldier.objects.filter(is_active=True).exclude(crew="").order_by('crew', 'last_name')
     by_class = Soldier.objects.filter(is_active=True).order_by('class_section', 'faculty_number')

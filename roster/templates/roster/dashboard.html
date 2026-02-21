@@ -106,7 +106,12 @@
                             <tr>
                                 <td><span class="badge bg-dark">{{ shift.duty_type.name }}</span></td>
                                 <td>
-                                    {{ shift.soldier.rank_title }} {{ shift.soldier.smart_name }}</div>
+                                    <div class="fw-bold">
+                                        {{ shift.soldier.rank_title }} {{ shift.soldier.smart_name }}
+                                        {% if shift.soldier.position != 'Редови' %}
+                                            <span class="badge bg-info text-dark ms-1" style="font-size: 0.7em;">{{ shift.soldier.position }}</span>
+                                        {% endif %}
+                                    </div>
                                 </td>
                                 <td class="text-muted small">
                                     {{ shift.soldier.company }} рота / {{ shift.soldier.platoon }} взв.

@@ -15,21 +15,189 @@
 {% block content %}
 <div class="mt-4 mb-5">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1 class="display-6">📊 Статистика и Управление</h1>
-        <a href="{% url 'daily_roster' %}" class="btn btn-outline-primary">⬅️ Към Графика</a>
+        <h1 class="display-6 fw-bold">📊 Статистика и Управление</h1>
+        <a href="{% url 'daily_roster' %}" class="btn btn-outline-primary fw-bold">⬅️ Към Графика</a>
     </div>
 
     <ul class="nav nav-tabs" id="myTab" role="tablist">
-        <li class="nav-item"><button class="nav-link active" id="points-tab" data-bs-toggle="tab" data-bs-target="#points">⚖️ Точки</button></li>
-        <li class="nav-item"><button class="nav-link" id="company-tab" data-bs-toggle="tab" data-bs-target="#company">🏢 По Роти</button></li>
-        <li class="nav-item"><button class="nav-link" id="mass-tab" data-bs-toggle="tab" data-bs-target="#mass">⚡ Масово Отпуска</button></li>
-        <li class="nav-item"><button class="nav-link" id="crews-tab" data-bs-toggle="tab" data-bs-target="#crews">🚢 Екипажи</button></li>
-        <li class="nav-item"><button class="nav-link" id="class-tab" data-bs-toggle="tab" data-bs-target="#class">🎓 Класни</button></li>
+        <li class="nav-item"><button class="nav-link active fw-bold" id="points-tab" data-bs-toggle="tab" data-bs-target="#points">⚖️ Точки</button></li>
+        <li class="nav-item"><button class="nav-link fw-bold" id="company-tab" data-bs-toggle="tab" data-bs-target="#company">🏢 По Роти</button></li>
+        <li class="nav-item"><button class="nav-link fw-bold text-danger" id="mass-tab" data-bs-toggle="tab" data-bs-target="#mass">⚡ Масово Отпуска</button></li>
+        <li class="nav-item"><button class="nav-link fw-bold" id="crews-tab" data-bs-toggle="tab" data-bs-target="#crews">🚢 Екипажи</button></li>
+        <li class="nav-item"><button class="nav-link fw-bold" id="class-tab" data-bs-toggle="tab" data-bs-target="#class">🎓 Класни</button></li>
     </ul>
     
     <div class="tab-content bg-white p-4 border border-top-0 rounded-bottom shadow-sm">
+        
+        <div class="tab-pane fade show active" id="points">
+            <div class="alert alert-info py-2 small">
+                Показва военнослужещите, подредени по курс и точки. Най-натоварените са най-отгоре.
+            </div>
+            {% regroup leaderboard by rank_group.name as course_groups %}
+            <div class="accordion" id="accordionPoints">
+                {% for group in course_groups %}
+                <div class="accordion-item">
+                    <h2 class="accordion-header" id="headingPoints{{ forloop.counter }}">
+                        <button class="accordion-button {% if not forloop.first %}collapsed{% endif %} fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#collapsePoints{{ forloop.counter }}">
+                            {{ group.grouper }} <span class="badge bg-primary ms-2 rounded-pill">{{ group.list|length }} души</span>
+                        </button>
+                    </h2>
+                    <div id="collapsePoints{{ forloop.counter }}" class="accordion-collapse collapse {% if forloop.first %}show{% endif %}" data-bs-parent="#accordionPoints">
+                        <div class="accordion-body p-0">
+                            <table class="table table-hover table-sm align-middle mb-0">
+                                <thead class="table-light"><tr><th>Име</th><th>Фак. №</th><th class="text-center" style="width: 15%">Точки</th><th style="width: 30%">Натовареност</th><th></th></tr></thead>
+                                <tbody>
+                                    {% for s in group.list %}
+                                    <tr>
+                                        <tr>
+                                        <td class="fw-bold">
+                                            {{ s.rank_title }} {{ s.smart_name }}
+                                            {% if s.position != 'Редови' %}
+                                                <span class="badge bg-info text-dark ms-1" style="font-size: 0.7em;">{{ s.position }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-muted">{{ s.faculty_number }}</td>
+                                        <td class="text-center fs-5 fw-bold text-primary">{{ s.score }}</td>
+                                        <td>
+                                            <div class="score-bar"><div class="score-fill {% if s.score >= 15 %}high-score{% endif %}" style="width: {% if s.score > 20 %}100{% else %}{{ s.score|add:s.score|add:s.score|add:s.score|add:s.score }}%{% endif %}"></div></div>
+                                        </td>
+                                        <td class="text-end"><button class="btn btn-sm btn-outline-secondary open-profile" data-url="{% url 'soldier_profile' s.id %}">Досие</button></td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
         </div>
 
+        <div class="tab-pane fade" id="company">
+            <div class="row g-4">
+                <div class="col-md-4">
+                    <div class="card border-primary h-100">
+                        <div class="card-header bg-primary text-white fw-bold">⚓ 1-ва Рота (ВМС) <span class="badge bg-light text-dark float-end">{{ company_1|length }}</span></div>
+                        <ul class="list-group list-group-flush small" style="max-height: 500px; overflow-y: auto;">
+                            {% for s in company_1 %}
+                            <li class="list-group-item d-flex justify-content-between">
+                                <span>{{ s.rank_title }} <strong>{{ s.smart_name }}</strong> ({{ s.platoon }} взв.)</span>
+                                <span class="badge bg-secondary rounded-pill">{{ s.score }}</span>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card border-danger h-100">
+                        <div class="card-header bg-danger text-white fw-bold">⚕️ 2-ра Рота (Медици) <span class="badge bg-light text-dark float-end">{{ company_2|length }}</span></div>
+                        <ul class="list-group list-group-flush small" style="max-height: 500px; overflow-y: auto;">
+                            {% for s in company_2 %}
+                            <li class="list-group-item d-flex justify-content-between">
+                                <span>{{ s.rank_title }} <strong>{{ s.smart_name }}</strong> ({{ s.platoon }} взв.)</span>
+                                <span class="badge bg-secondary rounded-pill">{{ s.score }}</span>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card border-success h-100">
+                        <div class="card-header bg-success text-white fw-bold">👶 Млади Курсанти <span class="badge bg-light text-dark float-end">{{ young_cadets|length }}</span></div>
+                        <ul class="list-group list-group-flush small" style="max-height: 500px; overflow-y: auto;">
+                            {% for s in young_cadets %}
+                            <li class="list-group-item d-flex justify-content-between">
+                                <span>{{ s.rank_title }} <strong>{{ s.smart_name }}</strong> ({{ s.company }}Р)</span>
+                                <span class="badge bg-secondary rounded-pill">{{ s.score }}</span>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-pane fade" id="mass">
+            <div class="alert alert-warning">
+                <strong>Внимание:</strong> Избирането на хора и запазването на отпуска/болничен автоматично ще изтрие всички техни назначени наряди за избрания период!
+            </div>
+            
+            <form method="post" action="{% url 'save_batch_leave' %}">
+                {% csrf_token %}
+                <div class="row bg-light p-3 rounded mb-3 border align-items-end">
+                    <div class="col-md-2">{{ batch_form.start_date.label_tag }}{{ batch_form.start_date }}</div>
+                    <div class="col-md-2">{{ batch_form.end_date.label_tag }}{{ batch_form.end_date }}</div>
+                    <div class="col-md-3">{{ batch_form.leave_type.label_tag }}{{ batch_form.leave_type }}</div>
+                    <div class="col-md-3">{{ batch_form.reason.label_tag }}{{ batch_form.reason }}</div>
+                    <div class="col-md-2"><button type="submit" class="btn btn-danger w-100 fw-bold">💾 ЗАПИШИ</button></div>
+                </div>
+
+                <div class="mb-2">
+                    <input type="text" id="filterCompany" class="form-control form-control-sm w-25 d-inline-block" placeholder="Филтър по Рота (напр. 1)">
+                    <button type="button" class="btn btn-sm btn-secondary ms-2" id="selectAllBtn">Избери всички видими</button>
+                </div>
+
+                <div style="max-height: 400px; overflow-y: auto; border: 1px solid #dee2e6;">
+                    <table class="table table-sm table-hover mb-0" id="massTable">
+                        <thead class="table-dark" style="position: sticky; top: 0; z-index: 1;">
+                            <tr><th style="width: 5%">Избор</th><th>Име</th><th>Рота / Взвод</th><th>Звание</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for s in all_soldiers %}
+                            <tr class="soldier-row" data-company="{{ s.company }}">
+                                <td class="text-center">
+                                    <input class="form-check-input soldier-checkbox" type="checkbox" name="selected_soldiers" value="{{ s.id }}">
+                                </td>
+                                <td class="fw-bold">{{ s.smart_name }}</td>
+                                <td>{{ s.company }} рота / {{ s.platoon }} взв.</td>
+                                <td>{{ s.rank_title }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </form>
+        </div>
+
+        <div class="tab-pane fade" id="crews">
+            {% regroup by_crew by crew as crew_groups %}
+            <div class="row g-3">
+                {% for group in crew_groups %}
+                <div class="col-md-3">
+                    <div class="card h-100 border-secondary shadow-sm">
+                        <div class="card-header bg-secondary text-white py-1 text-center fw-bold">{{ group.grouper }}</div>
+                        <ul class="list-group list-group-flush small">
+                            {% for s in group.list %}
+                            <li class="list-group-item d-flex justify-content-between">
+                                {{ s.smart_name }} <span class="text-muted">{{ s.rank_title }}</span>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="tab-pane fade" id="class">
+            {% regroup by_class by class_section as class_groups %}
+            <div class="row g-3">
+                {% for group in class_groups %}
+                <div class="col-md-2">
+                    <div class="card h-100 shadow-sm">
+                        <div class="card-header bg-dark text-white py-1 text-center fw-bold">Кл. {{ group.grouper }}</div>
+                        <ul class="list-group list-group-flush small" style="font-size: 0.8rem">
+                            {% for s in group.list %}
+                            <li class="list-group-item py-1">{{ s.faculty_number|slice:"-2:" }} {{ s.smart_name }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+    </div>
 </div>
 
 <div class="modal fade" id="soldierModal" tabindex="-1" aria-hidden="true">
@@ -41,11 +209,63 @@
 
 {% block extra_js %}
 <script>
-    // Тук слагаш JavaScript-а за филтрите и чекбоксовете от предишния файл
     document.addEventListener("DOMContentLoaded", function () {
-        // ... (кодът за filterTable, selectAll и soldierModal) ...
+        // Логика за масовата отпуска
         const filterCompany = document.getElementById('filterCompany');
-        // ... и т.н. ...
+        const rows = document.querySelectorAll('.soldier-row');
+        const selectAllBtn = document.getElementById('selectAllBtn');
+
+        if (filterCompany) {
+            filterCompany.addEventListener('input', function() {
+                const val = this.value.toLowerCase();
+                rows.forEach(row => {
+                    const company = row.getAttribute('data-company').toLowerCase();
+                    if (val === "" || company.includes(val)) {
+                        row.classList.remove('hidden');
+                    } else {
+                        row.classList.add('hidden');
+                    }
+                });
+            });
+        }
+
+        if (selectAllBtn) {
+            selectAllBtn.addEventListener('click', function() {
+                const visibleCheckboxes = document.querySelectorAll('.soldier-row:not(.hidden) .soldier-checkbox');
+                const allChecked = Array.from(visibleCheckboxes).every(cb => cb.checked);
+                visibleCheckboxes.forEach(cb => {
+                    cb.checked = !allChecked;
+                    toggleRowHighlight(cb);
+                });
+            });
+        }
+
+        document.querySelectorAll('.soldier-checkbox').forEach(cb => {
+            cb.addEventListener('change', function() { toggleRowHighlight(this); });
+        });
+
+        function toggleRowHighlight(checkbox) {
+            const row = checkbox.closest('tr');
+            if (checkbox.checked) row.classList.add('selected-row');
+            else row.classList.remove('selected-row');
+        }
+
+        // Модал за профилите
+        var soldierModal = new bootstrap.Modal(document.getElementById('soldierModal'));
+        var modalContent = document.querySelector('#soldierModal .modal-content');
+
+        document.body.addEventListener('click', function(e) {
+            var target = e.target.closest('.open-profile');
+            if (target) {
+                e.preventDefault();
+                soldierModal.show();
+                fetch(target.getAttribute('data-url'))
+                    .then(response => response.text())
+                    .then(html => {
+                        modalContent.innerHTML = html;
+                    });
+            }
+        });
     });
 </script>
 {% endblock %}
