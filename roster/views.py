@@ -5,10 +5,11 @@ from django.shortcuts import render, get_object_or_404, redirect
 from datetime import timedelta
 from .models import Announcement, DutyShift, DutyType, Soldier, Leave, Announcement # добави Announcement
 from .forms import DutyShiftForm, BatchLeaveForm
-from django.db.models import Count, Q
+from django.db.models import Count, Q, Case, When, Value, IntegerField
 from django.contrib import messages
 import calendar
 import datetime
+import re
 
 def dashboard_view(request):
     today = datetime.date.today()
@@ -134,29 +135,86 @@ def roster_view(request):
     return render(request, 'roster/daily_roster.html', context)
 
 def statistics_view(request):
-    # 1. Класация (Leaderboard)
-    # ВАЖНО: Сортираме ПЪРВО по име на курса, за да не се нацепват групите, ако приоритетите са еднакви!
-    # След това по точки (-score).
-    leaderboard = Soldier.objects.filter(is_active=True).select_related('rank_group').order_by(
-        'rank_group__priority', # Първо по важност (ако е настроено)
-        'rank_group__name',     # Второ по име (за да са групирани 1-ви, 2-ри и т.н.)
-        '-score'                # Трето по точки
+    # --- МАГИЯ ЗА СОРТИРАНЕ НА ДЛЪЖНОСТИ ---
+    # Придаваме числова тежест на длъжностите (1 е най-важно, 99 са редовите)
+    position_order = Case(
+        When(position='ДК', then=Value(1)),
+        When(position='ЗДК', then=Value(2)),
+        When(position='ОК', then=Value(3)),
+        When(position='ЗОК', then=Value(4)),
+        When(position='ЕК', then=Value(5)),
+        When(position='ЗЕК', then=Value(6)),
+        When(position='КВД', then=Value(7)), # Най-старши при Младите
+        When(position='ЗКВ', then=Value(8)),
+        When(position='КО', then=Value(9)),
+        default=Value(99),
+        output_field=IntegerField()
+    )
+
+    # --- БАЗОВ ФИЛТЪР ---
+    # Взимаме само активните и ИЗКЛЮЧВАМЕ Офицерските Кандидати (КВ) от статистиката
+    base_qs = Soldier.objects.filter(is_active=True).exclude(position='КВ')
+
+    # 1. ТАБ: ТОЧКИ (Класация)
+    leaderboard = base_qs.select_related('rank_group').order_by(
+        'rank_group__priority', 'rank_group__name', '-score'
     )
     
-    # 2. Списъци по роти 
-    # .exclude(platoon='Млади') маха младите от списъка на старите
-    # 2. Списъци по роти 
-    # Вече няма нужда от .exclude(platoon='Млади'), защото са в отделна рота!
-    company_1 = Soldier.objects.filter(company='1', is_active=True).order_by('last_name')
-    company_2 = Soldier.objects.filter(company='2', is_active=True).order_by('last_name')
-
-    # 3. Младите (само те) - вече ги търсим по company
-    young_cadets = Soldier.objects.filter(company='Млади', is_active=True).order_by('faculty_number')
-        
-    by_crew = Soldier.objects.filter(is_active=True).exclude(crew="").order_by('crew', 'last_name')
-    by_class = Soldier.objects.filter(is_active=True).order_by('class_section', 'faculty_number')
+    # 2. ТАБ: ПО РОТИ
+    young_cmds = ['КО', 'ЗКВ', 'КВД'] # Командирите на Младите
     
-    # Форма за масовата отпуска
+    # За 1-ва и 2-ра рота МАХАМЕ командирите на младите
+    company_1 = base_qs.filter(company='1').exclude(position__in=young_cmds).annotate(
+        pos_order=position_order
+    ).order_by('pos_order', '-rank_group__priority', 'last_name')
+    
+    company_2 = base_qs.filter(company='2').exclude(position__in=young_cmds).annotate(
+        pos_order=position_order
+    ).order_by('pos_order', '-rank_group__priority', 'last_name')
+
+    # При Младите слагаме 1-ви курс ИЛИ командирите им от горните курсове
+    young_cadets = base_qs.filter(
+        Q(company='Млади') | Q(position__in=young_cmds)
+    ).annotate(
+        pos_order=position_order
+    ).order_by('pos_order', '-rank_group__priority', 'last_name')
+
+    # 3. ТАБ: ЕКИПАЖИ И ЩАБ
+    high_command_positions = ['ДК', 'ЗДК', 'ОК', 'ЗОК']
+    
+    # Само Щабът (Големите командири)
+    high_command = base_qs.filter(
+        position__in=high_command_positions
+    ).annotate(pos_order=position_order).order_by('pos_order', '-rank_group__priority', 'last_name')
+
+    # Всички останали в екипажите (без Щаба)
+    crews_raw = base_qs.exclude(crew="").exclude(
+        position__in=high_command_positions
+    ).annotate(pos_order=position_order).order_by('pos_order', '-rank_group__priority', 'last_name')
+    
+    # Групираме ги и ги сортираме математически (1, 2, 3... 16)
+    crews_dict = {}
+    for s in crews_raw:
+        crews_dict.setdefault(s.crew, []).append(s)
+    
+    def extract_num(crew_name):
+        nums = re.findall(r'\d+', crew_name)
+        return int(nums[0]) if nums else 999
+    
+    sorted_crew_keys = sorted(crews_dict.keys(), key=extract_num)
+    by_crew = [{'name': key, 'members': crews_dict[key]} for key in sorted_crew_keys]
+
+    # 4. ТАБ: КЛАСНИ ОТДЕЛЕНИЯ
+    by_class_raw = base_qs.exclude(class_section="").order_by(
+        '-rank_group__priority', 'class_section', 'faculty_number'
+    )
+    
+    class_dict = {}
+    for s in by_class_raw:
+        class_dict.setdefault(s.class_section, []).append(s)
+        
+    by_class = [{'name': key, 'members': class_dict[key]} for key in class_dict.keys()]
+
     batch_form = BatchLeaveForm()
 
     context = {
@@ -164,9 +222,10 @@ def statistics_view(request):
         'company_1': company_1,
         'company_2': company_2,
         'young_cadets': young_cadets,
+        'high_command': high_command,
         'by_crew': by_crew,
         'by_class': by_class,
-        'all_soldiers': leaderboard, # Използваме същия списък за масовата таблица
+        'all_soldiers': leaderboard, # Използваме го за масовата отпуска
         'batch_form': batch_form,
     }
     return render(request, 'roster/statistics.html', context)
