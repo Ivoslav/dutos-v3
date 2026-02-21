@@ -188,27 +188,57 @@
 <div class="modal fade" id="soldierModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
-            <div class="modal-body text-center p-5"><div class="spinner-border text-primary"></div></div>
+            <div class="modal-body text-center p-5">
+                <div class="spinner-border text-primary"></div>
+                <div class="mt-2 text-muted">Зареждане на досие...</div>
+            </div>
         </div>
     </div>
 </div>
+{% endblock %}
 
+{% block extra_js %}
 <script>
-// Копираме скрипта за модалния прозорец, за да работи и тук
 document.addEventListener("DOMContentLoaded", function() {
-    var soldierModal = new bootstrap.Modal(document.getElementById("soldierModal"));
-    var modalContent = document.querySelector("#soldierModal .modal-content");
+    var soldierModalEl = document.getElementById("soldierModal");
+    if (!soldierModalEl) return;
+    
+    var soldierModal = new bootstrap.Modal(soldierModalEl);
+    var modalContent = soldierModalEl.querySelector(".modal-content");
 
     document.body.addEventListener("click", function (e) {
         var target = e.target.closest(".open-profile");
         if (target) {
             e.preventDefault();
+            // Показваме лоудър, докато се теглят данните
+            modalContent.innerHTML = '<div class="modal-body text-center p-5"><div class="spinner-border text-primary"></div><div class="mt-2 text-muted">Зареждане на досие...</div></div>';
             soldierModal.show();
+            
             fetch(target.getAttribute("data-url"))
                 .then(res => res.text())
-                .then(html => { modalContent.innerHTML = html; });
+                .then(html => { 
+                    modalContent.innerHTML = html; 
+                    bindDutyForm(); // За да работи и назначаването на наряд от тук
+                })
+                .catch(err => console.error("Грешка при зареждане:", err));
         }
     });
+
+    function bindDutyForm() {
+        var form = document.getElementById('dutyForm');
+        if (form) {
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                fetch(form.action, {
+                    method: 'POST',
+                    body: new FormData(form),
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                .then(r => r.redirected ? window.location.reload() : r.text())
+                .then(html => { if(html) { modalContent.innerHTML = html; bindDutyForm(); } });
+            });
+        }
+    }
 });
 </script>
 {% endblock %}

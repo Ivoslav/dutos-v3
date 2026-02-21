@@ -161,21 +161,18 @@ def statistics_view(request):
     )
     
     # 2. ТАБ: ПО РОТИ
-    young_cmds = ['КО', 'ЗКВ', 'КВД'] # Командирите на Младите
+    # Тъй като seed_data.py вече слага КО, ЗКВ и КВД в компания "Млади", 
+    # кодът тук става супер прост и чист!
     
-    # За 1-ва и 2-ра рота МАХАМЕ командирите на младите
-    company_1 = base_qs.filter(company='1').exclude(position__in=young_cmds).annotate(
+    company_1 = base_qs.filter(company='1').annotate(
         pos_order=position_order
     ).order_by('pos_order', '-rank_group__priority', 'last_name')
     
-    company_2 = base_qs.filter(company='2').exclude(position__in=young_cmds).annotate(
+    company_2 = base_qs.filter(company='2').annotate(
         pos_order=position_order
     ).order_by('pos_order', '-rank_group__priority', 'last_name')
 
-    # При Младите слагаме 1-ви курс ИЛИ командирите им от горните курсове
-    young_cadets = base_qs.filter(
-        Q(company='Млади') | Q(position__in=young_cmds)
-    ).annotate(
+    young_cadets = base_qs.filter(company='Млади').annotate(
         pos_order=position_order
     ).order_by('pos_order', '-rank_group__priority', 'last_name')
 
@@ -188,8 +185,11 @@ def statistics_view(request):
     ).annotate(pos_order=position_order).order_by('pos_order', '-rank_group__priority', 'last_name')
 
     # Всички останали в екипажите (без Щаба)
+    # Всички останали в екипажите (без Щаба и СТРОГО БЕЗ МЛАДИТЕ)
     crews_raw = base_qs.exclude(crew="").exclude(
         position__in=high_command_positions
+    ).exclude(
+        company='Млади'
     ).annotate(pos_order=position_order).order_by('pos_order', '-rank_group__priority', 'last_name')
     
     # Групираме ги и ги сортираме математически (1, 2, 3... 16)
