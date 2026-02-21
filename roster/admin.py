@@ -1,5 +1,11 @@
 from django.contrib import admin
-from .models import Soldier, DutyType, DutyShift, Leave
+from .models import Soldier, DutyType, DutyShift, Leave, ShiftPreference
+
+@admin.register(ShiftPreference)
+class ShiftPreferenceAdmin(admin.ModelAdmin):
+    list_display = ('soldier', 'date', 'preference', 'created_at')
+    list_filter = ('preference', 'date', 'soldier__company')
+    search_fields = ('soldier__last_name',)
 
 # 1. Тунинг на Войниците
 @admin.register(Soldier)

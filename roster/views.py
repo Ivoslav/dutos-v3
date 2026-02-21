@@ -3,10 +3,11 @@ from io import StringIO
 from django.contrib.auth.decorators import user_passes_test
 from django.shortcuts import render, get_object_or_404, redirect
 from datetime import timedelta
-from .models import Announcement, DutyShift, DutyType, Soldier, Leave, Announcement # добави Announcement
+from .models import Announcement, DutyShift, DutyType, Soldier, Leave, Announcement, ShiftPreference
 from .forms import DutyShiftForm, BatchLeaveForm
 from django.db.models import Count, Q, Case, When, Value, IntegerField
 from django.contrib import messages
+from django.db import transaction
 import calendar
 import datetime
 import re
@@ -528,3 +529,88 @@ def dismiss_announcement(request):
     Announcement.objects.filter(is_active=True).update(is_active=False)
     messages.success(request, "✅ Тревогата е отменена.")
     return redirect('roster_home')
+
+def _generate_smart_month(year, month):
+    _, num_days = calendar.monthrange(year, month)
+    duties = DutyType.objects.all().order_by('-weight') # От най-тежките към най-леките
+    
+    # Зареждаме виртуални точки (за да не пипаме базата докато е чернова)
+    soldiers = Soldier.objects.filter(is_active=True)
+    current_scores = {s.id: s.score for s in soldiers}
+    
+    # Изтриваме старите чернови за този месец (за да можем да прегенерираме)
+    DutyShift.objects.filter(date__year=year, date__month=month, status='admin_draft').delete()
+
+    for day in range(1, num_days + 1):
+        current_date = datetime.date(year, month, day)
+        yesterday = current_date - timedelta(days=1)
+        
+        # 1. Твърди забрани за деня
+        on_leave = Leave.objects.filter(start_date__lte=current_date, end_date__gte=current_date).values_list('soldier_id', flat=True)
+        tired = DutyShift.objects.filter(date=yesterday).values_list('soldier_id', flat=True)
+        assigned_today = DutyShift.objects.filter(date=current_date).values_list('soldier_id', flat=True)
+        
+        # 2. Желания за деня
+        wants = ShiftPreference.objects.filter(date=current_date, preference='want').values_list('soldier_id', flat=True)
+        cannots = ShiftPreference.objects.filter(date=current_date, preference='cannot').values_list('soldier_id', flat=True)
+
+        for duty in duties:
+            needed = duty.people_required
+            allowed_groups = duty.allowed_ranks.all() # ЗЛАТНОТО ПРАВИЛО (Курсовете)
+            
+            candidates = soldiers.filter(rank_group__in=allowed_groups)
+            valid_candidates = [c for c in candidates if c.id not in on_leave and c.id not in tired and c.id not in assigned_today]
+            
+            if not valid_candidates:
+                continue # Ако буквално няма живи хора, прескачаме (или хвърляме грешка)
+            
+            # Разпределяме в кофи и сортираме по виртуалните точки
+            volunteers = sorted([c for c in valid_candidates if c.id in wants], key=lambda x: current_scores[x.id])
+            neutrals = sorted([c for c in valid_candidates if c.id not in wants and c.id not in cannots], key=lambda x: current_scores[x.id])
+            blocked = sorted([c for c in valid_candidates if c.id in cannots], key=lambda x: current_scores[x.id])
+            
+            selected = []
+            
+            # Пълним: Първо доброволци -> После неутрални -> Накрая "под ножа"
+            for lst in [volunteers, neutrals, blocked]:
+                while len(selected) < needed and lst:
+                    chosen = lst.pop(0)
+                    selected.append(chosen)
+                    # Добавяме виртуални точки, за да не го избере пак утре
+                    current_scores[chosen.id] += duty.weight
+                    
+            # Създаваме черновата
+            for s in selected:
+                DutyShift.objects.create(
+                    date=current_date, duty_type=duty, soldier=s, status='admin_draft'
+                )
+
+
+# --- 2. ИЗГЛЕДЪТ ЗА АДМИНА ---
+@user_passes_test(lambda u: u.is_superuser)
+def monthly_planner(request):
+    today = datetime.date.today()
+    # По подразбиране предлагаме следващия месец
+    next_month_date = (today.replace(day=28) + timedelta(days=4))
+    target_year = next_month_date.year
+    target_month = next_month_date.month
+
+    if request.method == 'POST':
+        target_year = int(request.POST.get('year'))
+        target_month = int(request.POST.get('month'))
+        
+        # Стартираме умния алгоритъм
+        _generate_smart_month(target_year, target_month)
+        
+        messages.success(request, f"✅ Скритата чернова за {target_month}/{target_year} е генерирана успешно и чака преглед!")
+        return redirect('monthly_planner')
+
+    # Взимаме статистика колко чернови имаме генерирани
+    draft_count = DutyShift.objects.filter(date__year=target_year, date__month=target_month, status='admin_draft').count()
+
+    context = {
+        'target_year': target_year,
+        'target_month': target_month,
+        'draft_count': draft_count,
+    }
+    return render(request, 'roster/monthly_planner.html', context)

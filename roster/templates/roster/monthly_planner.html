@@ -1,0 +1,66 @@
+{% extends 'roster/base.html' %}
+
+{% block title %}Месечно Планиране{% endblock %}
+
+{% block content %}
+<div class="mt-4 mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="display-6 fw-bold">🗓️ Месечно Планиране (Генератор)</h1>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card shadow-sm border-primary h-100">
+                <div class="card-header bg-primary text-white fw-bold">
+                    ⚙️ Генериране на нов месец
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">
+                        Алгоритъмът ще разпредели нарядите за целия месец, спазвайки: <br>
+                        1. Строгите курсови ограничения (Кой какъв наряд има право да дава). <br>
+                        2. Почивката от 24 часа. <br>
+                        3. Желанията на курсантите (Доброволци с предимство). <br>
+                        4. Равномерното разпределение на точките.
+                    </p>
+                    <hr>
+                    <form method="post" action="{% url 'monthly_planner' %}" class="d-flex align-items-end gap-3">
+                        {% csrf_token %}
+                        <div>
+                            <label class="form-label small text-muted">Година</label>
+                            <input type="number" name="year" class="form-control" value="{{ target_year }}" required>
+                        </div>
+                        <div>
+                            <label class="form-label small text-muted">Месец</label>
+                            <input type="number" name="month" class="form-control" value="{{ target_month }}" min="1" max="12" required>
+                        </div>
+                        <button type="submit" class="btn btn-warning fw-bold">
+                            🤖 Генерирай Скрита Чернова
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card shadow-sm border-secondary h-100">
+                <div class="card-header bg-secondary text-white fw-bold">
+                    Статус на графика за {{ target_month }} / {{ target_year }}
+                </div>
+                <div class="card-body text-center py-5">
+                    {% if draft_count > 0 %}
+                        <h2 class="text-warning mb-3">Има {{ draft_count }} генерирани наряда (Скрити)</h2>
+                        <p class="text-muted">Курсантите все още не ги виждат. Можете да ги разгледате в "График", да направите ръчни корекции и след това да ги публикувате за обсъждане.</p>
+                        
+                        <a href="{% url 'daily_roster' %}?date={{ target_year }}-0{{ target_month }}-01" class="btn btn-outline-primary mt-2">👀 Преглед на Черновата</a>
+                        
+                        <button class="btn btn-success mt-2 ms-2 disabled">🚀 Публикувай на Борсата (Скоро)</button>
+                    {% else %}
+                        <h2 class="text-muted mb-3">Няма генериран график</h2>
+                        <p class="text-muted">Използвайте панела отляво, за да създадете чернова.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

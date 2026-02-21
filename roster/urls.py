@@ -11,6 +11,7 @@ urlpatterns = [
     # ... останалите пътища са същите ...
     path('daily/', views.roster_view, name='daily_roster'),
     path('statistics/', views.statistics_view, name='roster_stats'),
+    path('planner/', views.monthly_planner, name='monthly_planner'),
     path('batch-leave/save/', views.save_batch_leave, name='save_batch_leave'),
     path('soldier/<int:soldier_id>/', views.soldier_profile, name='soldier_profile'),
     path('swap/<int:shift_id>/', views.emergency_swap, name='emergency_swap'),

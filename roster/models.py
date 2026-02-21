@@ -151,21 +151,29 @@ class DutyType(models.Model):
         verbose_name_plural = "Видове Наряди"
 
 class DutyShift(models.Model):
+    STATUS_CHOICES = [
+        ('admin_draft', '🔒 Скрита чернова'),
+        ('public_draft', '👀 Проекто-наряд'),
+        ('official', '✅ Утвърден'),
+    ]
+
     date = models.DateField(verbose_name="Дата на наряда")
     duty_type = models.ForeignKey(DutyType, on_delete=models.CASCADE, verbose_name="Вид наряд")
     soldier = models.ForeignKey(Soldier, on_delete=models.CASCADE, verbose_name="Назначен")
     
+    # --- НОВОТО ПОЛЕ С 3-ТЕ ФАЗИ ---
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='admin_draft', verbose_name="Статус")
+    
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Създаден на")
 
     def __str__(self):
-        return f"{self.date} - {self.duty_type}: {self.soldier}"
+        return f"[{self.get_status_display()}] {self.date} - {self.duty_type.name}: {self.soldier.last_name}"
 
     class Meta:
         verbose_name = "Назначен наряд"
         verbose_name_plural = "График на нарядите"
         unique_together = ('date', 'soldier')
 
-# roster/models.py
 
 class Leave(models.Model):
     TYPE_CHOICES = [
@@ -233,3 +241,24 @@ class Announcement(models.Model):
     class Meta:
         verbose_name = "Извънредно съобщение"
         verbose_name_plural = "Извънредни съобщения"
+        
+class ShiftPreference(models.Model):
+    PREF_CHOICES = [
+        ('want', '🟩 Желая наряд (Доброволец)'),
+        ('cannot', '🟥 Не мога (Блокиран ден)'),
+    ]
+
+    soldier = models.ForeignKey(Soldier, on_delete=models.CASCADE, verbose_name="Военнослужещ")
+    date = models.DateField(verbose_name="Дата")
+    preference = models.CharField(max_length=10, choices=PREF_CHOICES, verbose_name="Тип желание")
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.soldier.last_name} - {self.date} ({self.get_preference_display()})"
+
+    class Meta:
+        verbose_name = "Желание за наряд"
+        verbose_name_plural = "Желания за наряди"
+        # Един човек не може да има две различни желания за един и същи ден
+        unique_together = ('soldier', 'date')
