@@ -72,17 +72,16 @@
                 <div class="card-body">
                     <h6 class="text-uppercase text-muted small">Готовност за Утре</h6>
                     <h3 class="fw-bold text-{{ tomorrow_class }} mb-0 mt-2">{{ tomorrow_status }}</h3>
+                    
                     {% if not is_tomorrow_ready %}
-                    <form method="post" action="{% url 'debug_panel' %}" class="mt-2">
-                        {% csrf_token %}
-                        <input type="hidden" name="action" value="generate_tomorrow">
-                        <button type="submit" class="btn btn-sm btn-outline-danger w-100">⚡ Генерирай Сега</button>
-                    </form>
+                    <div class="mt-2">
+                        <a href="{% url 'monthly_planner' %}" class="btn btn-sm btn-outline-danger w-100">📅 Към Месечния План</a>
+                    </div>
                     {% endif %}
                 </div>
             </div>
         </div>
-    </div>
+
 
     <div class="row g-4">
         

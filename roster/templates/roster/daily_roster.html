@@ -102,7 +102,12 @@
                                             </div>
                                             <div class="small text-muted">{{ shift.soldier.faculty_number }} | {{ shift.soldier.platoon }} взв.</div>
                                         </td>
-                                        <td><span class="badge bg-primary" style="font-size: 0.9rem;">{{ shift.duty_type.name }}</span></td>
+                                        <td>
+                                            <span class="badge bg-primary" style="font-size: 0.9rem;">{{ shift.duty_type.name }}</span>
+                                            {% if shift.status == 'admin_draft' %}
+                                                <br><span class="badge bg-warning text-dark mt-1">⚠️ Скрита чернова</span>
+                                            {% endif %}
+                                        </td>                                        
                                         <td class="text-end">
                                             <button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#swapModal"
                                                     onclick="setupSwap('{{ shift.id }}', '{{ shift.soldier.last_name }}', '{{ shift.duty_type.name }}')">

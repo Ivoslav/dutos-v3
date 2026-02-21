@@ -20,8 +20,7 @@ def dashboard_view(request):
     total_soldiers = Soldier.objects.filter(is_active=True).count()
     
     # Колко са наряд днес
-    on_duty_today_count = DutyShift.objects.filter(date=today).count()
-    
+    on_duty_today_count = DutyShift.objects.filter(date=today).exclude(status='admin_draft').count()    
     # Колко са в отпуск/болничен днес (активни leave записи)
     on_leave_today_count = Leave.objects.filter(
         start_date__lte=today, 
@@ -32,17 +31,17 @@ def dashboard_view(request):
     present_count = total_soldiers - (on_duty_today_count + on_leave_today_count)
 
     # 2. ВАЖНИТЕ НАРЯДИ ДНЕС (Сортирани по тежест - ДБПК най-горе)
-    key_shifts_today = DutyShift.objects.filter(date=today).select_related('soldier', 'duty_type').order_by('-duty_type__weight')[:5]
+    key_shifts_today = DutyShift.objects.filter(date=today).exclude(status='admin_draft').select_related('soldier', 'duty_type').order_by('-duty_type__weight')[:5]
 
-    # 3. ПРОВЕРКА ЗА УТРЕ (Има ли график?)
-    is_tomorrow_ready = DutyShift.objects.filter(date=tomorrow).exists()
-    tomorrow_missing_count = 0
+    # 3. ПРОВЕРКА ЗА УТРЕ (Има ли ОФИЦИАЛЕН график?)
+    is_tomorrow_ready = DutyShift.objects.filter(date=tomorrow).exclude(status='admin_draft').exists()
+    
     if not is_tomorrow_ready:
-        tomorrow_status = "⚠️ НЯМА ГРАФИК"
+        tomorrow_status = "⚠️ ЛИПСВА ГРАФИК"
         tomorrow_class = "danger"
     else:
-        tomorrow_count = DutyShift.objects.filter(date=tomorrow).count()
-        tomorrow_status = f"✅ Готов ({tomorrow_count} наряд)"
+        tomorrow_count = DutyShift.objects.filter(date=tomorrow).exclude(status='admin_draft').count()
+        tomorrow_status = f"✅ Утвърден ({tomorrow_count})"
         tomorrow_class = "success"
 
     # 4. БЪРЗ ПОГЛЕД КЪМ БОЛНИТЕ (За сводката)
@@ -338,19 +337,27 @@ def home_calendar(request):
         count_c1 = 0
         count_c2 = 0
         count_young = 0
+        
+        # Броим хората по роти за дадения ден
         for s in day_shifts:
-            if s.soldier.platoon == 'Млади':
+            if s.soldier.company == 'Млади': # Вече ги търсим по company
                 count_young += 1
             elif s.soldier.company == '1':
                 count_c1 += 1
             elif s.soldier.company == '2':
                 count_c2 += 1
         
+        # Проверяваме дали нарядите за деня са чернови
+        is_draft = False
+        if day_shifts and day_shifts[0].status == 'admin_draft':
+            is_draft = True
+            
         stats_by_day[day] = {
-                    'c1': count_c1, 
-                    'c2': count_c2, 
-                    'young': count_young
-                }
+            'c1': count_c1, 
+            'c2': count_c2, 
+            'young': count_young,
+            'is_draft': is_draft
+        }
         
     month_name = datetime.date(year, month, 1).strftime('%B %Y')
 

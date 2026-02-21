@@ -44,7 +44,9 @@
             {% if day == 0 %}
                 <div class="col calendar-day empty-day"></div>
             {% else %}
-                <div class="col calendar-day p-2 {% if shifts_by_day|get_item:day %}has-duty{% endif %} {% if day == today.day and month == today.month and year == today.year %}today{% endif %}">
+                {% with stats=stats_by_day|get_item:day %}
+                <div class="col calendar-day p-2 {% if shifts_by_day|get_item:day %}{% if stats.is_draft %}border-top border-4 border-warning{% else %}has-duty{% endif %}{% endif %} {% if day == today.day and month == today.month and year == today.year %}today{% endif %}">
+                {% endwith %}                    
                     <a href="{% url 'daily_roster' %}?date={{ year }}-{{ month|stringformat:'02d' }}-{{ day|stringformat:'02d' }}" class="fill-div">
                         <div class="d-flex justify-content-between">
                             <span class="day-number">{{ day }}</span>
