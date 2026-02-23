@@ -50,9 +50,7 @@
                     {% if draft_count > 0 %}
                         <h2 class="text-warning mb-3">Има {{ draft_count }} генерирани наряда (Скрити)</h2>
                         <p class="text-muted">Курсантите все още не ги виждат. Можете да ги разгледате в "График", да направите ръчни корекции и след това да ги публикувате за обсъждане.</p>
-                        
-                        <a href="{% url 'daily_roster' %}?date={{ target_year }}-0{{ target_month }}-01" class="btn btn-outline-primary mt-2">👀 Преглед на Черновата</a>
-                        
+                        <a href="{% url 'roster_calendar' %}?year={{ target_year }}&month={{ target_month }}" class="btn btn-outline-primary mt-2">👀 Към Календара</a>
                         <button class="btn btn-success mt-2 ms-2 disabled">🚀 Публикувай на Борсата (Скоро)</button>
                     {% else %}
                         <h2 class="text-muted mb-3">Няма генериран график</h2>

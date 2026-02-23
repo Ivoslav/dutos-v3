@@ -2,13 +2,8 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
-    # 1. ГЛАВНА СТРАНИЦА -> ВЕЧЕ Е ДАШБОРДЪТ
     path('', views.dashboard_view, name='roster_home'),
-
-    # 2. Календарът отива на свой адрес
     path('calendar/', views.home_calendar, name='roster_calendar'),
-
-    # ... останалите пътища са същите ...
     path('daily/', views.roster_view, name='daily_roster'),
     path('statistics/', views.statistics_view, name='roster_stats'),
     path('planner/', views.monthly_planner, name='monthly_planner'),
