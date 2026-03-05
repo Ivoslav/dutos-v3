@@ -211,10 +211,56 @@
         </div>
 
         <div class="tab-pane fade" id="actions">
-            <div class="text-center py-5">
-                <i class="bi bi-tools display-1 text-muted mb-3"></i>
-                <h3 class="fw-bold text-muted">Работилница</h3>
-                <p>Тук ще сложим Масовата отпуска, Експорта в Excel/PDF и Рапортите.</p>
+            <div class="row justify-content-center py-4">
+                <div class="col-md-8">
+                    
+                    <div class="card shadow-sm border-primary mb-4">
+                        <div class="card-header bg-primary text-white fw-bold">
+                            <i class="bi bi-calendar-range"></i> Автоматична Градска Отпуска (Уикенд)
+                        </div>
+                        <div class="card-body">
+                            <p class="small text-muted mb-4">
+                                Системата автоматично ще провери нарядите за съответния уикенд. 
+                                Ако курсант е наряд в събота, ще му пусне отпуска в петък вечер и неделя след сдаване (08:00). 
+                                5-ти курс автоматично се връщат в Понеделник 06:30!
+                            </p>
+                            <form method="post" action="{% url 'generate_weekend_leaves' %}">
+                                {% csrf_token %}
+                                <div class="row align-items-end g-3">
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-bold">Избери Петък:</label>
+                                        <input type="date" name="friday_date" class="form-control" required>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-bold">За коя Рота?</label>
+                                        <select name="company" class="form-select">
+                                            <option value="all">За целия батальон</option>
+                                            <option value="1">⚓ 1-ва Рота</option>
+                                            <option value="2">⚕️ 2-ра Рота</option>
+                                            <option value="Млади">👶 Млади курсанти</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <button type="submit" class="btn btn-primary w-100 fw-bold">
+                                            🚀 Генерирай
+                                        </button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <div class="card shadow-sm border-secondary">
+                        <div class="card-header bg-secondary text-white fw-bold">
+                            🖨️ Експорт на Списък за КПП
+                        </div>
+                        <div class="card-body text-center py-4">
+                            <i class="bi bi-printer display-4 text-muted"></i>
+                            <p class="text-muted mt-2">Скоро ще добавим бутона за разпечатване на готовия списък с часове.</p>
+                        </div>
+                    </div>
+
+                </div>
             </div>
         </div>
 

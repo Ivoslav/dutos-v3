@@ -121,7 +121,7 @@ def roster_view(request):
         if s.id in leave_map:
             l = leave_map[s.id]
             if l.leave_type == 'sick': report[group_key]['sick'].append(l)
-            elif l.leave_type == 'home': report[group_key]['home'].append(l)
+            elif l.leave_type in ['home', 'city']: report[group_key]['home'].append(l)
             elif l.leave_type == 'mission': report[group_key]['mission'].append(l)
             else: report[group_key]['other'].append(l)
         
@@ -247,66 +247,57 @@ def soldier_profile(request, soldier_id):
     form = DutyShiftForm(request.POST or None)
 
     if request.method == 'POST':
-        # 1. ЗАЩИТА ОТ "ЗОМБИТА" (Още преди валидацията на формата)
-        if not soldier.is_active: # <--- НОВА ЗАЩИТА 1
-             messages.error(request, "⛔ ГРЕШКА: Този военнослужещ е неактивен!")
-             return redirect('roster_stats') # Изхвърляме го веднага
-
-        if form.is_valid():
-            new_date = form.cleaned_data['date']
-            duty_type = form.cleaned_data['duty_type'] # Взимаме вида наряд от формата
+        action = request.POST.get('action', 'assign_duty')
+        
+        # --- 1. АКО КАПИТАНЪТ НАТИСНЕ "ЛИШАВАНЕ ОТ ОТПУСКА" ---
+        if action == 'revoke_leave':
+            start_date = request.POST.get('start_date')
+            end_date = request.POST.get('end_date')
+            reason = request.POST.get('reason')
             
-            # 2. ПРОВЕРКИ ЗА СЪВМЕСТИМОСТ (Leave, Shift, Rank)
-            
-            # А) Отпуск
-            on_leave = Leave.objects.filter(
-                soldier=soldier,
-                start_date__lte=new_date,
-                end_date__gte=new_date
-            ).exists()
-
-            # Б) Вече има наряд днес
-            has_shift_today = DutyShift.objects.filter(
-                soldier=soldier, 
-                date=new_date
-            ).exists()
-
-            # В) Умора (вчера)
-            yesterday = new_date - timedelta(days=1)
-            has_shift_yesterday = DutyShift.objects.filter(
-                soldier=soldier, 
-                date=yesterday
-            ).exists()
-
-            # Г) РАНГОВА ЗАЩИТА (Съвпада ли званието?)
-            # Проверяваме дали rank_group на войника присъства в allowed_ranks на наряда
-            is_rank_allowed = duty_type.allowed_ranks.filter(id=soldier.rank_group.id).exists() # <--- НОВА ЗАЩИТА 2
-
-            # --- ВАЛИДАЦИЯ ---
-            if on_leave:
-                form.add_error('date', '⛔ Грешка: Войникът е в отпуск на тази дата!')
-            
-            elif has_shift_today:
-                form.add_error('date', '⛔ Грешка: Вече има назначен наряд за този ден!')
-                
-            elif has_shift_yesterday:
-                form.add_error('date', '⛔ Грешка: Войникът е уморен (наряд вчера)!')
-
-            elif not is_rank_allowed: # <--- АКО ЗВАНИЕТО НЕ ОТГОВАРЯ
-                form.add_error('duty_type', f'⛔ Грешка: Този наряд не е позволен за "{soldier.rank_group}"!')
-
+            if start_date and end_date and reason:
+                Leave.objects.create(
+                    soldier=soldier,
+                    start_date=start_date,
+                    end_date=end_date,
+                    leave_type='revoked',
+                    reason=reason,
+                    status='official'
+                )
+                messages.error(request, f"🚫 {soldier.last_name} е лишен от отпуска!")
             else:
-                # Всичко е точно -> ЗАПИСВАМЕ
-                shift = form.save(commit=False)
-                shift.soldier = soldier
-                shift.save()
+                messages.warning(request, "⛔ Попълнете всички полета за наказанието.")
                 
-                soldier.score += shift.duty_type.weight
-                soldier.save()
-                
-                messages.success(request, "✅ Нарядът е добавен успешно!")
-                return redirect('roster_stats') # Или където трябва да води
+            return redirect(request.META.get('HTTP_REFERER', 'roster_stats'))
+            
+        # --- 2. АКО КАПИТАНЪТ НАЗНАЧАВА НАРЯД ---
+        elif action == 'assign_duty':
+            if not soldier.is_active:
+                 messages.error(request, "⛔ ГРЕШКА: Този военнослужещ е неактивен!")
+                 return redirect(request.META.get('HTTP_REFERER', 'roster_stats'))
 
+            if form.is_valid():
+                new_date = form.cleaned_data['date']
+                duty_type = form.cleaned_data['duty_type']
+                
+                on_leave = Leave.objects.filter(soldier=soldier, start_date__date__lte=new_date, end_date__date__gte=new_date).exists()
+                has_shift_today = DutyShift.objects.filter(soldier=soldier, date=new_date).exists()
+                has_shift_yesterday = DutyShift.objects.filter(soldier=soldier, date=new_date - timedelta(days=1)).exists()
+                is_rank_allowed = duty_type.allowed_ranks.filter(id=soldier.rank_group.id).exists()
+
+                if on_leave: form.add_error('date', '⛔ Грешка: Войникът е в отпуск/наказан на тази дата!')
+                elif has_shift_today: form.add_error('date', '⛔ Грешка: Вече има назначен наряд!')
+                elif has_shift_yesterday: form.add_error('date', '⛔ Грешка: Войникът е уморен!')
+                elif not is_rank_allowed: form.add_error('duty_type', f'⛔ Грешка: Нарядът не е за {soldier.rank_group}!')
+                else:
+                    shift = form.save(commit=False)
+                    shift.soldier = soldier
+                    shift.save()
+                    soldier.score += shift.duty_type.weight
+                    soldier.save()
+                    messages.success(request, "✅ Нарядът е добавен успешно!")
+                    return redirect(request.META.get('HTTP_REFERER', 'roster_stats'))
+                
     context = {
         'soldier': soldier,
         'upcoming_shifts': upcoming_shifts,
@@ -1210,3 +1201,260 @@ def monthly_export_print(request, year, month):
         'export_data': final_export_data,
     }
     return render(request, 'roster/monthly_print.html', context)
+
+# ==========================================
+# 🌴 ГЕНЕРАТОР НА ОТПУСКИ (УИКЕНД)
+# ==========================================
+@user_passes_test(lambda u: u.is_superuser)
+def generate_weekend_leaves(request):
+    if request.method == 'POST':
+        friday_str = request.POST.get('friday_date')
+        company = request.POST.get('company')
+        
+        try:
+            # Използваме datetime.datetime за да не се бърка с обикновения date
+            friday_date = datetime.datetime.strptime(friday_str, '%Y-%m-%d').date()
+        except (ValueError, TypeError):
+            messages.error(request, "❌ Невалидна дата!")
+            return redirect('roster_stats')
+
+        # Филтрираме войниците според избраната рота
+        soldiers = Soldier.objects.filter(is_active=True)
+        if company != 'all':
+            soldiers = soldiers.filter(company=company)
+
+        saturday = friday_date + datetime.timedelta(days=1)
+        sunday = friday_date + datetime.timedelta(days=2)
+        monday = friday_date + datetime.timedelta(days=3)
+
+        created_count = 0
+
+        with transaction.atomic():
+            # Защита: Изтриваме старите автоматични отпуски за този уикенд, 
+            # за да не се дублират, ако цъкнеш бутона два пъти по погрешка!
+            Leave.objects.filter(
+                soldier__in=soldiers,
+                leave_type='city',
+                reason="Авто-Уикенд",
+                start_date__gte=datetime.datetime.combine(friday_date, datetime.time(0, 0))
+            ).delete()
+
+            for soldier in soldiers:
+                # Взимаме курса (напр. "4-ти курс" -> 4)
+                try:
+                    course_year = int(soldier.rank_group.name.split('-')[0])
+                except ValueError:
+                    course_year = 1 # Дефолт
+
+                # Проверяваме нарядите
+                has_fri_duty = DutyShift.objects.filter(soldier=soldier, date=friday_date).exists()
+                has_sat_duty = DutyShift.objects.filter(soldier=soldier, date=saturday).exists()
+                has_sun_duty = DutyShift.objects.filter(soldier=soldier, date=sunday).exists()
+
+                # СТАНДАРТЕН КРАЙ НА ОТПУСКАТА
+                if course_year == 5:
+                    standard_end = datetime.datetime.combine(monday, datetime.time(6, 30))
+                else:
+                    standard_end = datetime.datetime.combine(sunday, datetime.time(21, 0))
+
+                leaves_to_create = []
+
+                if has_sat_duty:
+                    # ⚠️ Наряд Събота -> Две разкъсани отпуски
+                    if not has_fri_duty:
+                        leaves_to_create.append({
+                            'start': datetime.datetime.combine(friday_date, datetime.time(17, 30)),
+                            'end': datetime.datetime.combine(friday_date, datetime.time(21, 0))
+                        })
+                    if not has_sun_duty:
+                        leaves_to_create.append({
+                            'start': datetime.datetime.combine(sunday, datetime.time(8, 0)),
+                            'end': standard_end
+                        })
+                elif has_sun_duty:
+                    # ⚠️ Наряд Неделя -> Съкратена отпуска
+                    if not has_fri_duty:
+                        leaves_to_create.append({
+                            'start': datetime.datetime.combine(friday_date, datetime.time(17, 30)),
+                            'end': datetime.datetime.combine(saturday, datetime.time(21, 0))
+                        })
+                else:
+                    # ✅ Свободен уикенд (Ако е бил наряд петък, излиза събота 08:00)
+                    start_time = datetime.datetime.combine(saturday, datetime.time(8, 0)) if has_fri_duty else datetime.datetime.combine(friday_date, datetime.time(17, 30))
+                    leaves_to_create.append({
+                        'start': start_time,
+                        'end': standard_end
+                    })
+
+                # Записваме в базата
+                for l in leaves_to_create:
+                    Leave.objects.create(
+                        soldier=soldier,
+                        start_date=l['start'],
+                        end_date=l['end'],
+                        leave_type='city',
+                        reason="Авто-Уикенд"
+                    )
+                    created_count += 1
+
+        messages.success(request, f"✅ Успешно генерирани {created_count} отпуски за {soldiers.count()} души!")
+        return redirect('roster_stats')
+
+    return redirect('roster_stats')
+
+# ==========================================
+# 🛂 КПП / ЕЖЕДНЕВНИ ОТПУСКИ
+# ==========================================
+@user_passes_test(lambda u: u.is_superuser)
+def daily_leave_manager(request):
+    import datetime
+    
+    date_str = request.GET.get('date') or request.POST.get('date')
+    if date_str:
+        try:
+            target_date = datetime.datetime.strptime(date_str, '%Y-%m-%d').date()
+        except ValueError:
+            target_date = datetime.date.today()
+    else:
+        target_date = datetime.date.today()
+
+    next_day = target_date + datetime.timedelta(days=1)
+    weekday = target_date.weekday() # 0=Пон, 1=Вто, 2=Сря, 3=Чет, 4=Пет, 5=Съб, 6=Нед
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        
+        # --- 1. ГЕНЕРИРАНЕ ПО ПРАВИЛА ---
+        if action == 'generate':
+            # Изтриваме стари чернови за деня
+            Leave.objects.filter(start_date__date=target_date, leave_type='city', status='draft').delete()
+            
+            soldiers = Soldier.objects.filter(is_active=True)
+            created_count = 0
+            
+            for s in soldiers:
+                # Ако днес е наряд, не излиза!
+                if DutyShift.objects.filter(soldier=s, date=target_date).exists():
+                    continue
+
+                try: course_year = int(s.rank_group.name.split('-')[0])
+                except ValueError: course_year = 1
+                
+                has_duty_next = DutyShift.objects.filter(soldier=s, date=next_day).exists()
+                
+                should_go = False
+                return_date = target_date
+                return_time = datetime.time(21, 0) # По дефолт 21:00 същия ден
+                
+                # --- ЛОГИКА ПЕТЪК (УИКЕНД) ---
+                if weekday == 4:
+                    should_go = True
+                    if course_year == 5:
+                        return_date = target_date + datetime.timedelta(days=3) # Понеделник
+                        return_time = datetime.time(6, 30)
+                    else:
+                        return_date = target_date + datetime.timedelta(days=2) # Неделя
+                        return_time = datetime.time(21, 0)
+                
+                # --- ЛОГИКА ДЕЛНИК (ПОН-ЧЕТВЪРТЪК) ---
+                elif weekday in [0, 1, 2, 3]:
+                    if course_year == 5:
+                        should_go = True
+                        return_date = next_day
+                        return_time = datetime.time(6, 30)
+                    elif course_year == 4:
+                        should_go = True
+                        if s.has_scholarship:
+                            return_date = next_day
+                            return_time = datetime.time(5, 40)
+                        else:
+                            return_time = datetime.time(21, 0)
+                    elif course_year in [2, 3] and weekday == 2 and s.has_scholarship: # Сряда със стипендия
+                        should_go = True
+                        return_time = datetime.time(21, 0)
+                
+                if should_go:
+                    # ЖЕЛЯЗНО ПРАВИЛО: Ако утре си наряд, се прибираш днес в 21:00!
+                    if has_duty_next:
+                        return_date = target_date
+                        return_time = datetime.time(21, 0)
+                        
+                    start_dt = datetime.datetime.combine(target_date, datetime.time(17, 30))
+                    end_dt = datetime.datetime.combine(return_date, return_time)
+                    
+                    Leave.objects.create(soldier=s, start_date=start_dt, end_date=end_dt, leave_type='city', reason="Автоматична", status='draft')
+                    created_count += 1
+            
+            messages.success(request, f"✅ Успешно генерирана чернова с {created_count} отпуски по устав!")
+
+        # --- 2. РЪЧНО ДОБАВЯНЕ (ПО ЗАСЛУГИ) ---
+        elif action == 'add_manual':
+            soldier_id = request.POST.get('soldier_id')
+            if soldier_id:
+                s = Soldier.objects.get(id=soldier_id)
+                # По заслуги излизат от 17:30 до 21:00 същия ден
+                has_duty_next = DutyShift.objects.filter(soldier=s, date=next_day).exists()
+                
+                start_dt = datetime.datetime.combine(target_date, datetime.time(17, 30))
+                end_dt = datetime.datetime.combine(target_date, datetime.time(21, 0))
+                
+                Leave.objects.create(soldier=s, start_date=start_dt, end_date=end_dt, leave_type='city', reason="По заслуги/Заповед", status='draft')
+                messages.success(request, f"🎖️ {s.last_name} беше добавен по заслуги!")
+
+        # --- 3. УТВЪРЖДАВАНЕ ---
+        elif action == 'publish':
+            Leave.objects.filter(start_date__date=target_date, leave_type='city', status='draft').update(status='official')
+            messages.warning(request, "📢 Отпуските са утвърдени! Вече се виждат в приложението и на КПП-то.")
+
+        return redirect(f"/roster/leaves/daily/?date={target_date.strftime('%Y-%m-%d')}")
+
+    # --- ДАННИ ЗА ИЗГЛЕДА ---
+    leaves = Leave.objects.filter(start_date__date=target_date, leave_type='city').select_related('soldier').order_by('soldier__company', 'soldier__last_name')
+    
+    # За падащото меню изключваме хората, които вече имат генерирана отпуска днес
+    busy_ids = leaves.values_list('soldier_id', flat=True)
+    available_soldiers = Soldier.objects.filter(is_active=True).exclude(id__in=busy_ids).order_by('company', 'last_name')
+
+    context = {
+        'target_date': target_date,
+        'leaves': leaves,
+        'available_soldiers': available_soldiers,
+        'has_drafts': leaves.filter(status='draft').exists(),
+        'has_official': leaves.filter(status='official').exists()
+    }
+    return render(request, 'roster/daily_leave_manager.html', context)
+
+# ==========================================
+# 🖨️ ЕКСПОРТ НА ОТПУСКИ ЗА КПП (PDF)
+# ==========================================
+@user_passes_test(lambda u: u.is_superuser)
+def daily_leave_print(request, date_str):
+    try:
+        target_date = datetime.datetime.strptime(date_str, '%Y-%m-%d').date()
+    except ValueError:
+        target_date = datetime.date.today()
+
+    # Взимаме САМО утвърдените отпуски (ГО и ДО) за тази дата
+    leaves = Leave.objects.filter(
+        start_date__date=target_date, 
+        leave_type__in=['city', 'home'],
+        status='official'
+    ).select_related('soldier', 'soldier__rank_group').order_by(
+        'soldier__company', 'soldier__platoon', 'soldier__last_name'
+    )
+    
+    # Групираме ги по Роти за по-лесно четене на КПП-то
+    from collections import OrderedDict
+    leaves_by_company = OrderedDict()
+    
+    for l in leaves:
+        comp = f"{l.soldier.company} рота" if l.soldier.company in ['1', '2'] else "Млади курсанти"
+        if comp not in leaves_by_company:
+            leaves_by_company[comp] = []
+        leaves_by_company[comp].append(l)
+
+    context = {
+        'target_date': target_date,
+        'leaves_by_company': leaves_by_company,
+    }
+    return render(request, 'roster/daily_leave_print.html', context)

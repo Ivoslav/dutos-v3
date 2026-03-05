@@ -23,73 +23,113 @@
         </div>
     </div>
 
-    <div class="card mb-4 border-primary">
+    <div class="card mb-4 border-primary shadow-sm">
         <div class="card-header bg-primary text-white py-1">➕ Назначи наряд</div>
         <div class="card-body bg-light">
-            <form id="dutyForm" method="post" action="{% url 'soldier_profile' soldier.id %}" class="row g-2 align-items-end">
+            <form method="post" action="{% url 'soldier_profile' soldier.id %}" class="row g-2 align-items-end">
                 {% csrf_token %}
-                
-                {% if form.date.errors %}
-                    <div class="col-12 text-danger fw-bold small mb-2">
-                        {{ form.date.errors.0 }}
-                    </div>
+                <input type="hidden" name="action" value="assign_duty"> {% if form.date.errors %}
+                    <div class="col-12 text-danger fw-bold small mb-2">{{ form.date.errors.0 }}</div>
+                {% endif %}
+                {% if form.duty_type.errors %}
+                    <div class="col-12 text-danger fw-bold small mb-2">{{ form.duty_type.errors.0 }}</div>
                 {% endif %}
 
                 <div class="col-6">
-                    <label class="small text-muted">Дата:</label>
-                    {{ form.date }} </div>
+                    <label class="small text-muted fw-bold">Дата:</label>
+                    {{ form.date }} 
+                </div>
                 <div class="col-6">
-                    <label class="small text-muted">Вид наряд:</label>
+                    <label class="small text-muted fw-bold">Вид наряд:</label>
                     {{ form.duty_type }}
                 </div>
                 <div class="col-12 mt-2">
-                    <button type="submit" class="btn btn-primary btn-sm w-100">Запиши</button>
+                    <button type="submit" class="btn btn-primary btn-sm w-100 fw-bold">Запиши Наряд</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card mb-4 border-danger shadow-sm">
+        <div class="card-header bg-danger text-white py-1 fw-bold">🚫 Наложи отказ от отпуска</div>
+        <div class="card-body bg-light">
+            <form method="post" action="{% url 'soldier_profile' soldier.id %}" class="row g-2 align-items-end">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="revoke_leave"> <div class="col-6">
+                    <label class="small text-muted fw-bold">От (Дата/Час):</label>
+                    <input type="datetime-local" name="start_date" class="form-control form-control-sm" required>
+                </div>
+                <div class="col-6">
+                    <label class="small text-muted fw-bold">До (Дата/Час):</label>
+                    <input type="datetime-local" name="end_date" class="form-control form-control-sm" required>
+                </div>
+                <div class="col-12">
+                    <label class="small text-muted fw-bold">Причина за отказа:</label>
+                    <input type="text" name="reason" class="form-control form-control-sm" placeholder="Напр: Непочистен район / Нарушение" required>
+                </div>
+                <div class="col-12 mt-2">
+                    <button type="submit" class="btn btn-danger btn-sm w-100 fw-bold">Лиши от отпуска</button>
                 </div>
             </form>
         </div>
     </div>
 
     {% if leaves %}
-    <h6 class="text-warning border-bottom border-warning pb-1">⚠️ Отпуски и Болнични</h6>
-    <ul class="list-group list-group-flush mb-3 small">
+    <h6 class="text-warning border-bottom border-warning pb-1 mt-3 fw-bold">⚠️ Отсъствия и Наказания</h6>
+    <ul class="list-group list-group-flush mb-4 small shadow-sm">
         {% for leave in leaves %}
-            <li class="list-group-item d-flex justify-content-between align-items-center bg-warning bg-opacity-10">
+            <li class="list-group-item d-flex justify-content-between align-items-center {% if leave.leave_type == 'revoked' %}bg-danger bg-opacity-10 border-danger{% else %}bg-warning bg-opacity-10{% endif %}">
                 <span>
-                    {% if leave.leave_type == 'sick' %}🤒 Болничен{% else %}🏠 Отпуск{% endif %}
-                    <span class="text-muted">({{ leave.start_date|date:"d.m" }} - {{ leave.end_date|date:"d.m" }})</span>
+                    {% if leave.leave_type == 'sick' %}🤒 Болничен
+                    {% elif leave.leave_type == 'revoked' %}<span class="text-danger fw-bold">🚫 Отказ: {{ leave.reason }}</span>
+                    {% elif leave.leave_type == 'city' %}🏙️ Градска
+                    {% elif leave.leave_type == 'home' %}🏠 Домашен
+                    {% else %}✈️ {{ leave.get_leave_type_display }}{% endif %}
+                    
+                    <div class="text-muted fw-bold" style="font-size: 0.85em;">
+                        {{ leave.start_date|date:"d.m H:i" }} - {{ leave.end_date|date:"d.m H:i" }}
+                    </div>
                 </span>
             </li>
-        {% endfor %} </ul>
+        {% endfor %} 
+    </ul>
     {% endif %}
 
-    <h6 class="text-primary border-bottom border-primary pb-1">📅 Предстоящи наряди</h6>
-    {% if upcoming_shifts %}
-        <ul class="list-group list-group-flush mb-3 small">
-            {% for shift in upcoming_shifts %}
-            <li class="list-group-item d-flex justify-content-between">
-                <strong>{{ shift.date|date:"d.m.Y" }} ({{ shift.date|date:"l" }})</strong>
-                <span class="badge bg-primary">{{ shift.duty_type.name }}</span>
-            </li>
-            {% endfor %} </ul>
-    {% else %}
-        <p class="text-muted small mb-3">Няма планирани наряди.</p>
-    {% endif %}
-
-    <h6 class="text-secondary border-bottom pb-1 mt-4">clock История (Последни 5)</h6>
-    {% if past_shifts %}
-        <ul class="list-group list-group-flush small text-muted">
-            {% for shift in past_shifts|slice:":5" %}
-            <li class="list-group-item d-flex justify-content-between bg-light">
-                <span>{{ shift.date|date:"d.m.Y" }}</span>
-                <span>{{ shift.duty_type.name }}</span>
-            </li>
-            {% endfor %} </ul>
-    {% else %}
-        <p class="text-muted small">Няма история.</p>
-    {% endif %}
+    <div class="row g-3">
+        <div class="col-md-6">
+            <h6 class="text-primary border-bottom border-primary pb-1 fw-bold">📅 Предстоящи</h6>
+            {% if upcoming_shifts %}
+                <ul class="list-group list-group-flush mb-3 small">
+                    {% for shift in upcoming_shifts %}
+                    <li class="list-group-item px-1 d-flex justify-content-between align-items-center">
+                        <strong>{{ shift.date|date:"d.m" }} <span class="text-muted fw-normal">({{ shift.date|date:"D"|slice:":2" }})</span></strong>
+                        <span class="badge bg-primary">{{ shift.duty_type.short_name|default:shift.duty_type.name }}</span>
+                    </li>
+                    {% endfor %} 
+                </ul>
+            {% else %}
+                <p class="text-muted small mb-3">Няма планирани.</p>
+            {% endif %}
+        </div>
+        <div class="col-md-6">
+            <h6 class="text-secondary border-bottom border-secondary pb-1 fw-bold">🕒 История (Последни 5)</h6>
+            {% if past_shifts %}
+                <ul class="list-group list-group-flush small text-muted">
+                    {% for shift in past_shifts|slice:":5" %}
+                    <li class="list-group-item px-1 d-flex justify-content-between bg-light align-items-center">
+                        <span>{{ shift.date|date:"d.m.Y" }}</span>
+                        <span>{{ shift.duty_type.short_name|default:shift.duty_type.name }}</span>
+                    </li>
+                    {% endfor %} 
+                </ul>
+            {% else %}
+                <p class="text-muted small">Няма история.</p>
+            {% endif %}
+        </div>
+    </div>
 
 </div>
 
-<div class="modal-footer bg-light p-1">
+<div class="modal-footer bg-light p-2">
     <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Затвори</button>
 </div>

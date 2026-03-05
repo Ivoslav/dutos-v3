@@ -85,6 +85,7 @@ class Soldier(models.Model):
 
     score = models.IntegerField(default=0, verbose_name="Натрупани точки")
     is_active = models.BooleanField(default=True, verbose_name="Активен")
+    has_scholarship = models.BooleanField(default=False, verbose_name="Получава стипендия")
     
     user = models.OneToOneField(User, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Потребителски акаунт")
     
@@ -202,30 +203,32 @@ class DutyShift(models.Model):
 
 class Leave(models.Model):
     TYPE_CHOICES = [
+        ('city', 'Градска отпуска (ГО)'),
         ('home', 'Домашен отпуск'),
         ('sick', 'Болничен / Лазарет'),
         ('mission', 'Командировка'),
         ('arrest', 'Арест'),
+        ('revoked', '🚫 Отказ от отпуска'),
         ('other', 'Друго'),
+    ]
+    
+    STATUS_CHOICES = [
+        ('draft', '📝 Чернова'),
+        ('official', '✅ Утвърдена'),
     ]
 
     soldier = models.ForeignKey(Soldier, on_delete=models.CASCADE, verbose_name="Военнослужещ")
-    start_date = models.DateField(verbose_name="Начална дата")
-    end_date = models.DateField(verbose_name="Крайна дата")
-    leave_type = models.CharField(max_length=20, choices=TYPE_CHOICES, default='home', verbose_name="Вид")
+    start_date = models.DateTimeField(verbose_name="Начална дата")
+    end_date = models.DateTimeField(verbose_name="Крайна дата")
+    leave_type = models.CharField(max_length=20, choices=TYPE_CHOICES, default='city', verbose_name="Вид")
     reason = models.CharField(max_length=100, blank=True, verbose_name="Причина (опционално)")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='official', verbose_name="Статус")
 
     def save(self, *args, **kwargs):
-        # 1. Преди да запишем отпуската, търсим конфликти в графика
-        # Трябва да направим import-а тук вътре, за да избегнем Circular Import грешка,
-        # ако DutyShift е дефиниран след Leave (макар че при теб е преди, застраховаме се).
-        from .models import DutyShift 
-
-        # Намираме всички наряди, които попадат в периода на отпуската
         conflicting_shifts = DutyShift.objects.filter(
             soldier=self.soldier,
-            date__gte=self.start_date,
-            date__lte=self.end_date
+            date__gte=self.start_date.date(),
+            date__lte=self.end_date.date()
         )
 
         # 2. За всеки намерен конфликтен наряд:
