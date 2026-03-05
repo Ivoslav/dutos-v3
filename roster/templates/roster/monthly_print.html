@@ -5,39 +5,67 @@
     <title>График {{ month_date|date:"F Y" }}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
+        /* СТИЛОВЕ ЗА ЕКРАНА (Тъмната ти тема се запазва тук) */
         body { 
             font-family: "Times New Roman", Times, serif; 
-            font-size: 13px; 
-            background: white; 
-            color: black; 
-        }
-        /* ТЕЗИ ПРАВИЛА ВАЖАТ САМО КОГАТО СЕ ПРИНТИРА */
-        @media print {
-            .no-print { display: none !important; }
-            @page { size: A4 portrait; margin: 1cm; }
-            body { margin: 0; padding: 0; }
-            .course-section { page-break-inside: avoid; margin-bottom: 20px; }
-            tr { page-break-inside: avoid; }
+            font-size: 14px; 
+            background: #121212; 
+            color: #f8f9fa; 
         }
         .military-header { display: flex; justify-content: space-between; margin-bottom: 20px; }
         .military-title { text-align: center; text-transform: uppercase; font-weight: bold; margin-bottom: 20px; font-size: 16px; }
         
-        table th, table td { border: 1px solid black !important; padding: 4px 6px !important; vertical-align: middle; }
-        table th { background-color: #f8f9fa !important; font-weight: bold; text-align: center; }
-        
-        /* Стил за списъка с нарядите на конкретен човек */
-        .shift-list { margin: 0; padding-left: 0; list-style: none; }
-        .shift-item { border-bottom: 1px dotted #ccc; padding-bottom: 2px; margin-bottom: 2px; }
-        .shift-item:last-child { border-bottom: none; padding-bottom: 0; margin-bottom: 0; }
+        table th, table td { border: 1px solid #dee2e6 !important; padding: 6px !important; vertical-align: middle; color: #f8f9fa; }
+        table th { background-color: #212529 !important; font-weight: bold; text-align: center; }
+        .course-section h6 { background: #343a40 !important; color: white !important; border-color: #dee2e6 !important; }
+
+        /* ========================================== */
+        /* 🖨️ АГРЕСИВНИ СТИЛОВЕ САМО ЗА ПРИНТЕР      */
+        /* ========================================== */
+        @media print {
+            .no-print { display: none !important; }
+            
+            /* Настройки на листа (Малки маржини за повече място) */
+            @page { size: A4 portrait; margin: 10mm; }
+            
+            /* Убиваме всички тъмни теми, фонове и цветове */
+            * {
+                background: transparent !important;
+                color: black !important;
+                box-shadow: none !important;
+                text-shadow: none !important;
+            }
+            
+            /* Компресиран текст за принтера */
+            body { 
+                font-size: 11px !important; /* Много по-дребен шрифт за хартията */
+                line-height: 1.1 !important;
+            }
+            
+            /* Сплескваме таблиците до краен предел */
+            table th, table td { 
+                padding: 3px 4px !important; /* Ултра тесен падинг */
+                border: 1px solid black !important; 
+            }
+            
+            .military-header { margin-bottom: 10px; }
+            .military-title { margin-bottom: 15px; font-size: 13px !important; }
+            
+            /* Предотвратяваме цепенето на един човек на две страници */
+            tr { page-break-inside: avoid; }
+            
+            .course-section { margin-bottom: 15px !important; }
+            .course-section h6 { font-size: 12px !important; padding: 3px !important; border: 1px solid black !important; border-bottom: none !important; }
+        }
     </style>
 </head>
-<body class="p-4">
+<body class="p-3">
 
-    <div class="no-print text-center mb-4 bg-light p-3 border rounded shadow-sm">
-        <button onclick="window.print()" class="btn btn-dark btn-lg px-5 fw-bold shadow">
+    <div class="no-print text-center mb-4 bg-dark p-3 border border-secondary rounded shadow-lg">
+        <button onclick="window.print()" class="btn btn-light btn-lg px-5 fw-bold shadow">
             🖨️ ПРИНТИРАЙ / ЗАПАЗИ КАТО PDF
         </button>
-        <a href="javascript:history.back()" class="btn btn-outline-secondary btn-lg ms-3 fw-bold">⬅️ Назад</a>
+        <a href="javascript:history.back()" class="btn btn-outline-light btn-lg ms-3 fw-bold">⬅️ Назад</a>
     </div>
 
     <div class="military-header">
@@ -56,22 +84,22 @@
 
     <div class="military-title">
         Г Р А Ф И К<br>
-        за носене на дежурната служба през месец {{ month_date|date:"F Y" }} г.
+        за носене на дежурната служба през месец {{ month_date|date:"F Y"|upper }} г.
     </div>
 
     {% for block in export_data %}
     <div class="course-section">
-        <h6 class="fw-bold text-uppercase bg-light p-1 border border-dark border-bottom-0 mb-0 ps-2">⚓ {{ block.course_name }}</h6>
+        <h6 class="fw-bold text-uppercase border-bottom-0 mb-0 ps-2">⚓ {{ block.course_name }}</h6>
         
-        <table class="table table-bordered border-dark table-sm mb-0">
+        <table class="table table-bordered table-sm mb-0">
             <thead>
                 <tr>
                     <th style="width: 4%;">№</th>
                     <th style="width: 12%;">Звание</th>
-                    <th style="width: 25%;">Фамилия и Инициали</th>
-                    <th style="width: 14%;">Фак. №</th>
-                    <th style="width: 30%;">Дати и Вид Наряд</th>
-                    <th style="width: 15%;">Подпис</th>
+                    <th style="width: 22%;">Фамилия и Инициали</th>
+                    <th style="width: 12%;">Фак. №</th>
+                    <th style="width: 40%;">Дати и Вид Наряд</th>
+                    <th style="width: 10%;">Подпис</th>
                 </tr>
             </thead>
             <tbody>
@@ -81,20 +109,15 @@
                     <td class="text-center align-middle">{{ record.soldier.rank_title }}</td>
                     <td class="align-middle fw-bold">
                         {{ record.soldier.last_name }} {{ record.soldier.first_name|slice:":1" }}.
-                        <div class="float-end fw-normal small text-muted">({{ record.soldier.company }} р.)</div>
+                        <span class="float-end fw-normal small no-print text-muted">({{ record.soldier.company }} р.)</span>
                     </td>
-                    <td class="text-center align-middle text-muted">{{ record.soldier.faculty_number }}</td>
+                    <td class="text-center align-middle" style="font-family: monospace;">{{ record.soldier.faculty_number }}</td>
                     
-                    <td class="align-middle">
-                        <ul class="shift-list">
-                            {% for s in record.shifts %}
-                            <li class="shift-item">
-                                <strong>{{ s.date|date:"d.m" }}</strong> 
-                                <span class="small text-muted">({{ s.date|date:"D"|slice:":2" }})</span> 
-                                - {{ s.duty_type.name }}
-                            </li>
-                            {% endfor %}
-                        </ul>
+                    <td class="align-middle" style="line-height: 1.3;">
+                        {% for s in record.shifts %}
+                            <strong>{{ s.date|date:"d.m" }}</strong> 
+                            <span style="font-size: 0.85em;">({{ s.duty_type.short_name }})</span>{% if not forloop.last %}, {% endif %}
+                        {% endfor %}
                     </td>
                     
                     <td class="align-middle"></td> 
@@ -104,14 +127,14 @@
         </table>
     </div>
     {% empty %}
-        <div class="text-center py-4 border border-dark">Няма утвърдени наряди за този месец.</div>
+        <div class="text-center py-4 border">Няма утвърдени наряди за този месец.</div>
     {% endfor %}
 
-    <div class="mt-5 d-flex justify-content-between course-section">
+    <div class="mt-4 d-flex justify-content-between course-section">
         <div>
             <p class="fw-bold mb-0">ИЗГОТВИЛ:</p>
             <p class="mb-0 fw-bold">КОМАНДИР НА РОТА</p>
-            <p class="mt-4">..............................................</p>
+            <p class="mt-4 mb-0">..............................................</p>
             <p class="mb-0">/......................................../</p>
         </div>
     </div>

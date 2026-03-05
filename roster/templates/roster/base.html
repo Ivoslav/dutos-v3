@@ -105,15 +105,23 @@
     </nav>
 
     <main class="container">
-        {% if messages %}
-            {% for message in messages %}
-                <div class="alert alert-{{ message.tags }} alert-dismissible fade show shadow-sm mt-3" role="alert">
-                    {% if message.tags == 'success' %}✅{% elif message.tags == 'error' %}⛔{% elif message.tags == 'warning' %}⚠️{% endif %}
-                    {{ message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-            {% endfor %}
-        {% endif %}
+        <div aria-live="polite" aria-atomic="true" class="position-relative">
+        <div class="toast-container position-fixed top-0 end-0 p-4" style="z-index: 9999;">
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="toast align-items-center text-white bg-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} border-0 shadow-lg mb-2" role="alert" aria-live="assertive" aria-atomic="true">
+                        <div class="d-flex p-1">
+                            <div class="toast-body fs-6 fw-bold">
+                                {% if message.tags == 'success' %}✅{% elif message.tags == 'error' %}❌{% elif message.tags == 'warning' %}⚠️{% endif %}
+                                {{ message }}
+                            </div>
+                            <button type="button" class="btn-close btn-close-white me-3 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                        </div>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        </div>
+    </div>
 
         {% block content %}
         {% endblock %}
@@ -129,5 +137,14 @@
     
     {% block extra_js %}{% endblock %}
 
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var toastElList = [].slice.call(document.querySelectorAll('.toast'))
+            var toastList = toastElList.map(function (toastEl) {
+                return new bootstrap.Toast(toastEl, { autohide: true, delay: 4000 })
+            });
+            toastList.forEach(toast => toast.show());
+        });
+    </script>
   </body>
 </html>

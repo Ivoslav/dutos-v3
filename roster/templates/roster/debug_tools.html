@@ -38,12 +38,25 @@
                             1. Създай Видове Наряди
                         </button>
                     </form>
-
                     <form method="post">
                         {% csrf_token %}
                         <input type="hidden" name="action" value="fix_duties">
                         <button type="submit" class="btn btn-outline-dark w-100">
                             2. Настрой Правилата (Fix Duties)
+                        </button>
+                    </form>
+                    <form method="post" class="mt-2">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="simulate_activity">
+                        <button type="submit" class="btn btn-outline-info fw-bold w-100">
+                            🎭 3. Симулирай Живот (Отпуски и Желания)
+                        </button>
+                    </form>
+                    <form method="post" class="mt-2">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="simulate_swaps">
+                        <button type="submit" class="btn btn-outline-warning text-dark fw-bold w-100">
+                            🔄 4. Симулирай Борса (Заявки)
                         </button>
                     </form>
                 </div>

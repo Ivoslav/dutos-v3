@@ -103,6 +103,20 @@
                 <h3 class="fw-bold text-light">Отворена Борса</h3>
                 <p class="text-secondary fs-5">Графикът се вижда от всички. Курсантите търсят смени през мобилното приложение.</p>
 
+                {% if open_swaps %}
+                <div class="text-start mt-4 mb-4 border border-info rounded p-3 bg-dark">
+                    <h6 class="fw-bold text-info mb-2">🟢 Търсят заместник (Никой не ги е взел)</h6>
+                    <div class="d-flex flex-wrap gap-2">
+                        {% for swap in open_swaps %}
+                            <span class="badge border border-info text-info p-2">
+                                {{ swap.shift.date|date:"d.m" }} | {{ swap.requester.rank_title }} {{ swap.requester.last_name }}
+                            </span>
+                        {% endfor %}
+                    </div>
+                    <small class="text-muted mt-2 d-block">Ако затворите борсата сега, тези заявки ще бъдат автоматично отхвърлени.</small>
+                </div>
+                {% endif %}
+
                 <div class="text-start mt-4">
                     <h5 class="fw-bold text-warning border-bottom border-secondary pb-2 mb-3">🟡 Чакат твоето одобрение ({{ pending_swaps|length }})</h5>
                     <div class="row">
@@ -110,13 +124,27 @@
                         <div class="col-md-6">
                             <div class="card border-warning bg-dark mb-3 shadow">
                                 <div class="card-body">
-                                    <div class="small text-secondary mb-2">Наряд: <strong class="text-light">{{ swap.shift.date|date:"d.m.Y" }} ({{ swap.shift.duty_type.name }})</strong></div>
-                                    <div class="d-flex justify-content-between align-items-center fw-bold fs-5">
-                                        <span class="text-danger">{{ swap.requester.last_name }}</span>
-                                        <i class="bi bi-arrow-right text-secondary fs-3"></i>
-                                        <span class="text-success">{{ swap.substitute.last_name }}</span>
+                                    <div class="small text-secondary mb-3 text-center border-bottom border-secondary pb-2">
+                                        Наряд: <strong class="text-light">{{ swap.shift.date|date:"d.m.Y" }} ({{ swap.shift.duty_type.name }})</strong>
                                     </div>
-                                    <div class="mt-3 d-flex gap-2">
+                                    
+                                    <div class="d-flex justify-content-between align-items-center text-center">
+                                        <div class="w-45">
+                                            <div class="small text-muted fw-bold">{{ swap.requester.rank_title }}</div>
+                                            <div class="text-danger fw-bold fs-5">{{ swap.requester.last_name }}</div>
+                                            <div class="badge bg-secondary mt-1">{{ swap.requester.faculty_number }}</div>
+                                        </div>
+                                        <div class="w-10">
+                                            <i class="bi bi-arrow-right text-secondary fs-2"></i>
+                                        </div>
+                                        <div class="w-45">
+                                            <div class="small text-muted fw-bold">{{ swap.substitute.rank_title }}</div>
+                                            <div class="text-success fw-bold fs-5">{{ swap.substitute.last_name }}</div>
+                                            <div class="badge bg-secondary mt-1">{{ swap.substitute.faculty_number }}</div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mt-4 d-flex gap-2">
                                         <form method="post" class="w-50"><input type="hidden" name="action" value="reject_swap"><input type="hidden" name="swap_id" value="{{ swap.id }}">{% csrf_token %}<button class="btn btn-sm btn-outline-danger w-100">Откажи</button></form>
                                         <form method="post" class="w-50"><input type="hidden" name="action" value="approve_swap"><input type="hidden" name="swap_id" value="{{ swap.id }}">{% csrf_token %}<button class="btn btn-sm btn-success w-100 fw-bold">Одобри</button></form>
                                     </div>
@@ -124,18 +152,27 @@
                             </div>
                         </div>
                         {% empty %}
-                        <div class="col-12 text-secondary fst-italic">Няма чакащи смени в момента.</div>
+                        <div class="col-12 text-secondary fst-italic text-center py-3">Няма чакащи смени в момента.</div>
                         {% endfor %}
                     </div>
                 </div>
 
                 <hr class="my-5 border-secondary">
+                
                 <form method="post">
                     {% csrf_token %}
                     <input type="hidden" name="action" value="finalize">
-                    <button type="submit" class="btn btn-danger btn-lg fw-bold px-5 shadow-lg" onclick="return confirm('Сигурен ли си? Това ще затвори борсата и ще заключи графика!')">
-                        <i class="bi bi-lock-fill"></i> Затвори Борсата и Утвърди Графика
-                    </button>
+                    
+                    {% if pending_swaps %}
+                        <button type="button" class="btn btn-secondary btn-lg fw-bold px-5 shadow-lg disabled">
+                            <i class="bi bi-lock-fill"></i> Първо обработете чакащите заявки!
+                        </button>
+                        <p class="text-warning mt-2 small">⚠️ Имате необработени смени. Трябва да ги одобрите или откажете, преди да затворите борсата.</p>
+                    {% else %}
+                        <button type="submit" class="btn btn-danger btn-lg fw-bold px-5 shadow-lg" onclick="return confirm('Сигурен ли си? Това ще затвори борсата и ще заключи графика!')">
+                            <i class="bi bi-lock-fill"></i> Затвори Борсата и Утвърди Графика
+                        </button>
+                    {% endif %}
                 </form>
 
             {% elif phase == 4 %}

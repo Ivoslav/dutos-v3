@@ -488,6 +488,102 @@ def debug_panel(request):
             elif action == 'fix_duties':
                 call_command('fix_duties', stdout=out)
                 messages.success(request, "✅ Правилата за наряди са оправени!")
+
+            # --- НОВО: СИМУЛАЦИЯ НА ЖИВОТ ---
+            elif action == 'simulate_activity':
+                import random
+                today = datetime.date.today()
+                next_month_date = (today.replace(day=28) + timedelta(days=4))
+                ty, tm = next_month_date.year, next_month_date.month
+                _, num_days = calendar.monthrange(ty, tm)
+
+                # Изчистваме старите тестови данни
+                Leave.objects.all().delete()
+                ShiftPreference.objects.all().delete()
+
+                soldiers = list(Soldier.objects.filter(is_active=True))
+                leave_types = ['sick', 'home', 'mission', 'arrest']
+                
+                # 1. Раздаваме 20 случайни отпуски/болнични
+                for _ in range(20):
+                    s = random.choice(soldiers)
+                    start_day = random.randint(1, num_days - 5)
+                    start_d = datetime.date(ty, tm, start_day)
+                    end_d = start_d + timedelta(days=random.randint(2, 5))
+                    Leave.objects.create(soldier=s, start_date=start_d, end_date=end_d, leave_type=random.choice(leave_types), reason="Авто-Симулация")
+
+                # 2. Раздаваме 80 случайни желания (Доброволци и Блокирани)
+                for _ in range(80):
+                    s = random.choice(soldiers)
+                    p_date = datetime.date(ty, tm, random.randint(1, num_days))
+                    ShiftPreference.objects.get_or_create(soldier=s, date=p_date, defaults={'preference': random.choice(['want', 'cannot'])})
+
+                messages.success(request, f"🎭 СИМУЛАЦИЯ: Инжектирани са 20 отпуски/болнични и 80 желания за месец {tm}/{ty}!")
+            
+            # --- НОВО: СИМУЛАЦИЯ НА БОРСАТА (СМЕНИ) ---
+            elif action == 'simulate_swaps':
+                import random
+                from .models import ShiftSwapRequest # За всеки случай
+                
+                # Взимаме наряди от бъдещето, които не са официални (само public_draft или admin_draft)
+                future_shifts = list(DutyShift.objects.filter(date__gte=datetime.date.today()).exclude(status='official'))
+                
+                if not future_shifts:
+                    messages.error(request, "❌ Няма бъдещи наряди! Първо генерирай график.")
+                    return redirect('debug_panel')
+
+                # Избираме 10 случайни наряда за симулация
+                shifts_to_swap = random.sample(future_shifts, min(10, len(future_shifts)))
+                
+                created_open = 0
+                created_waiting = 0
+
+                for shift in shifts_to_swap:
+                    # Проверяваме дали този наряд вече няма пусната заявка
+                    if hasattr(shift, 'shiftswaprequest'):
+                        continue
+                        
+                    # 50% шанс да е само "open", 50% шанс някой вече да го е "взел"
+                    if random.choice([True, False]):
+                        # Само отворена заявка
+                        ShiftSwapRequest.objects.create(
+                            shift=shift,
+                            requester=shift.soldier,
+                            reason=random.choice(["Имам изпит", "Лични причини", "Не се чувствам добре", "Пътуване"]),
+                            status='open'
+                        )
+                        created_open += 1
+                    else:
+                        # Намерен е заместник
+                        # Търсим някой от същия курс, който няма наряд днес
+                        busy_ids = DutyShift.objects.filter(date=shift.date).values_list('soldier_id', flat=True)
+                        candidates = Soldier.objects.filter(
+                            rank_group=shift.soldier.rank_group, 
+                            is_active=True
+                        ).exclude(id__in=busy_ids).exclude(id=shift.soldier.id)
+
+                        if candidates.exists():
+                            substitute = random.choice(list(candidates))
+                            ShiftSwapRequest.objects.create(
+                                shift=shift,
+                                requester=shift.soldier,
+                                substitute=substitute,
+                                reason=random.choice(["Изпит", "Семеен повод", "Трябва да уча"]),
+                                status='waiting'
+                            )
+                            created_waiting += 1
+                        else:
+                            # Ако няма свободни съкурсници, просто го пускаме отворен
+                            ShiftSwapRequest.objects.create(
+                                shift=shift,
+                                requester=shift.soldier,
+                                reason="Няма заместници",
+                                status='open'
+                            )
+                            created_open += 1
+
+                messages.success(request, f"🔄 СИМУЛАЦИЯ БОРСА: Генерирани са {created_open} отворени заявки и {created_waiting} чакащи одобрение!")
+            
             
             elif action == 'generate_today':
                 today = datetime.date.today().strftime('%Y-%m-%d')
@@ -559,13 +655,13 @@ def _generate_smart_month(year, month):
         yesterday = current_date - timedelta(days=1)
         
         # 1. Твърди забрани за деня
-        on_leave = Leave.objects.filter(start_date__lte=current_date, end_date__gte=current_date).values_list('soldier_id', flat=True)
-        tired = DutyShift.objects.filter(date=yesterday).values_list('soldier_id', flat=True)
-        assigned_today = DutyShift.objects.filter(date=current_date).values_list('soldier_id', flat=True)
+        on_leave = set(Leave.objects.filter(start_date__lte=current_date, end_date__gte=current_date).values_list('soldier_id', flat=True))
+        tired = set(DutyShift.objects.filter(date=yesterday).values_list('soldier_id', flat=True))
+        assigned_today = set(DutyShift.objects.filter(date=current_date).values_list('soldier_id', flat=True))
         
         # 2. Желания за деня
-        wants = ShiftPreference.objects.filter(date=current_date, preference='want').values_list('soldier_id', flat=True)
-        cannots = ShiftPreference.objects.filter(date=current_date, preference='cannot').values_list('soldier_id', flat=True)
+        wants = set(ShiftPreference.objects.filter(date=current_date, preference='want').values_list('soldier_id', flat=True))
+        cannots = set(ShiftPreference.objects.filter(date=current_date, preference='cannot').values_list('soldier_id', flat=True))
 
         for duty in duties:
             needed = duty.people_required
@@ -593,10 +689,12 @@ def _generate_smart_month(year, month):
                     current_scores[chosen.id] += duty.weight
                     
             # Създаваме черновата
+            # Създаваме черновата
             for s in selected:
                 DutyShift.objects.create(
                     date=current_date, duty_type=duty, soldier=s, status='admin_draft'
                 )
+                assigned_today.add(s.id)
 
 # ==========================================
 # ⚖️ КАПИТАНСКИ ПУЛТ ЗА СМЕНИ (БОРСА)
