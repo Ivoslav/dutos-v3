@@ -118,3 +118,23 @@ class Command(BaseCommand):
             )
 
         self.stdout.write(self.style.SUCCESS(f'✅ Армията е обновена с АБСОЛЮТНО ТОЧНИ квоти!'))
+        
+        
+        
+        # --- НОВО: ГЕНЕРИРАНЕ НА ПОТРЕБИТЕЛСКИ АКАУНТИ ---
+        from django.contrib.auth.models import User
+        self.stdout.write("🔑 Генериране на потребителски акаунти за влизане в системата...")
+        
+        # Изтриваме старите обикновени потребители (без админите)
+        User.objects.filter(is_superuser=False).delete()
+        
+        for s in Soldier.objects.all():
+            # Потребителско име = Фак. номер, Парола = 123
+            user = User.objects.create_user(username=s.faculty_number, password='123')
+            user.first_name = s.first_name
+            user.last_name = s.last_name
+            user.save()
+            
+            # Връзваме войника към този акаунт
+            s.user = user
+            s.save()

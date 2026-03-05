@@ -14,4 +14,9 @@ urlpatterns = [
     path('emergency-print/', views.emergency_list, name='emergency_print'),
     path('alert/post/', views.post_announcement, name='post_announcement'),
     path('alert/dismiss/', views.dismiss_announcement, name='dismiss_announcement'),
+    path('api/login/', views.api_device_login, name='api_device_login'),
+    path('api/my-shifts/', views.api_my_shifts, name='api_my_shifts'),
+    path('api/announcements/', views.api_announcements, name='api_announcements'),
+    path('api/preferences/', views.api_submit_preference, name='api_submit_preference'),
+    path('api/profile/', views.api_profile, name='api_profile'),
 ]

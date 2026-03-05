@@ -1,9 +1,12 @@
 from django.core.management import call_command
 from io import StringIO
 from django.contrib.auth.decorators import user_passes_test
+from django.contrib.auth import authenticate
 from django.shortcuts import render, get_object_or_404, redirect
 from datetime import timedelta
-from .models import Announcement, DutyShift, DutyType, Soldier, Leave, Announcement, ShiftPreference
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework.permissions import AllowAny
+from .models import Announcement, DutyShift, DutyType, Soldier, Leave, Announcement, ShiftPreference, AuthorizedDevice
 from .forms import DutyShiftForm, BatchLeaveForm
 from django.db.models import Count, Q, Case, When, Value, IntegerField
 from django.contrib import messages
@@ -621,3 +624,204 @@ def monthly_planner(request):
         'draft_count': draft_count,
     }
     return render(request, 'roster/monthly_planner.html', context)
+
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny, AllowAny, IsAuthenticated
+from rest_framework.response import Response
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def api_my_shifts(request):
+    user = request.user 
+    soldier = user.soldier
+    today = datetime.date.today()
+    my_shifts = DutyShift.objects.filter(
+        soldier=soldier, 
+        date__gte=today
+    ).order_by('date')
+    data = []
+    for shift in my_shifts:
+        data.append({
+            "date": shift.date.strftime('%Y-%m-%d'),
+            "duty_name": shift.duty_type.name,
+            "status": shift.status
+        })
+        
+    return Response({
+        "status": "success",
+        "soldier_name": f"{soldier.rank_title} {soldier.last_name}",
+        "faculty_number": soldier.faculty_number,
+        "upcoming_shifts": data
+    })
+   
+# --- АПИ ЗА ТАБ 2: СЪОБЩЕНИЯ ---
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def api_announcements(request):
+    """ Връща само съобщенията, които се отнасят за този курсант """
+    soldier = request.user.soldier
+    
+    # Определяме кои съобщения го касаят
+    valid_targets = ['all']
+    if soldier.company == '1': valid_targets.append('1')
+    elif soldier.company == '2': valid_targets.append('2')
+    elif soldier.company == 'Млади': valid_targets.extend(['young', 'Млади'])
+    
+    # Ако е от щаба/висшия състав
+    if soldier.position in ['ДК', 'ЗДК', 'ОК', 'ЗОК', 'КВ']:
+        valid_targets.append('staff')
+
+    alerts = Announcement.objects.filter(is_active=True, target__in=valid_targets).order_by('-created_at')
+    
+    data = []
+    for a in alerts:
+        data.append({
+            "title": a.title,
+            "message": a.message,
+            "date": a.created_at.strftime('%d.%m.%Y %H:%M')
+        })
+        
+    return Response({
+        "status": "success",
+        "alerts": data
+    })
+
+
+# --- АПИ ЗА ТАБ 3: ЖЕЛАНИЯ / БОРСА ---
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def api_submit_preference(request):
+    """ Позволява на курсанта да каже кога ИСКА или НЕ МОЖЕ да е наряд """
+    soldier = request.user.soldier
+    
+    date_str = request.data.get('date')
+    preference = request.data.get('preference') # Очакваме 'want' или 'cannot'
+
+    if not date_str or preference not in ['want', 'cannot']:
+        return Response({"detail": "Невалидни данни. Изпратете 'date' и 'preference'."}, status=400)
+
+    try:
+        pref_date = datetime.datetime.strptime(date_str, '%Y-%m-%d').date()
+    except ValueError:
+        return Response({"detail": "Грешен формат на датата. Използвайте YYYY-MM-DD."}, status=400)
+
+    # Не могат да дават желания за минали дати
+    if pref_date < datetime.date.today():
+        return Response({"detail": "Не можете да заявявате желания за минали дати."}, status=400)
+
+    # Записваме или обновяваме желанието (ако вече е цъкнал веднъж)
+    obj, created = ShiftPreference.objects.update_or_create(
+        soldier=soldier,
+        date=pref_date,
+        defaults={'preference': preference}
+    )
+
+    action_text = "доброволец" if preference == 'want' else "блокиран"
+    return Response({
+        "status": "success", 
+        "message": f"Денят {date_str} е маркиран като {action_text}."
+    })
+ 
+@api_view(['POST'])
+@permission_classes([AllowAny]) 
+def api_device_login(request):
+    username = request.data.get('username')
+    password = request.data.get('password')
+    device_id = request.data.get('device_id') # <--- Хардуерният отпечатък
+    device_name = request.data.get('device_name', 'Unknown Device')
+
+    if not username or not password or not device_id:
+        return Response({"detail": "Липсват задължителни данни (username, password, device_id)."}, status=400)
+
+    # 1. Проверяваме паролата
+    user = authenticate(username=username, password=password)
+    
+    if user is None:
+        return Response({"detail": "Грешен факултетен номер или парола."}, status=401)
+        
+    soldier = getattr(user, 'soldier', None)
+    if not soldier or not soldier.is_active:
+        return Response({"detail": "Акаунтът е неактивен."}, status=403)
+
+    # 2. ПРОВЕРКА НА УСТРОЙСТВОТО (Zero Trust магията)
+    # Опитваме се да намерим това устройство в базата
+    device, created = AuthorizedDevice.objects.get_or_create(
+        device_id=device_id,
+        defaults={
+            'soldier': soldier,
+            'device_name': device_name
+        }
+    )
+
+    # Ако устройството вече съществува, но е вързано за ДРУГ курсант -> КРАЖБА!
+    if device.soldier != soldier:
+        return Response({"detail": "ВНИМАНИЕ: Това устройство е регистрирано на друг курсант!"}, status=403)
+
+    # Ако си го блокирал през Админ панела
+    if not device.is_active:
+        return Response({"detail": "Достъпът от това устройство е забранен от Администратор."}, status=403)
+
+    # Записваме от кое IP влиза (За следене)
+    client_ip = request.META.get('REMOTE_ADDR')
+    device.last_ip_address = client_ip
+    device.save()
+
+    # 3. ВСИЧКО Е ТОЧНО -> ИЗДАВАМЕ СЕРТИФИКАТА (JWT)
+    refresh = RefreshToken.for_user(user)
+
+    return Response({
+        "status": "success",
+        "message": f"Добре дошли, {soldier.last_name}",
+        "tokens": {
+            "refresh": str(refresh),
+            "access": str(refresh.access_token),
+        }
+    })
+    
+# --- АПИ ЗА ТАБ 1/3: ПРОФИЛ И ТОЧКИ ---
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def api_profile(request):
+    """ Връща пълното досие на курсанта за екрана 'Моят Профил' """
+    soldier = request.user.soldier
+    today = datetime.date.today()
+
+    # 1. Взимаме предстоящите отпуски/болнични
+    upcoming_leaves = Leave.objects.filter(
+        soldier=soldier,
+        end_date__gte=today
+    ).order_by('start_date')
+
+    leaves_data = []
+    for l in upcoming_leaves:
+        leaves_data.append({
+            "type": l.get_leave_type_display(),
+            "start": l.start_date.strftime('%Y-%m-%d'),
+            "end": l.end_date.strftime('%Y-%m-%d'),
+            "reason": l.reason or ""
+        })
+
+    # 2. Взимаме заявените желания (за да може приложението да ги оцвети в календара)
+    preferences = ShiftPreference.objects.filter(
+        soldier=soldier,
+        date__gte=today
+    )
+    
+    # Правим го на речник { "2026-10-25": "want", "2026-10-26": "cannot" } за лесно четене от телефона
+    pref_data = { p.date.strftime('%Y-%m-%d'): p.preference for p in preferences }
+
+    # 3. Пакетираме всичко
+    return Response({
+        "status": "success",
+        "profile": {
+            "first_name": soldier.first_name,
+            "last_name": soldier.last_name,
+            "rank_title": soldier.rank_title,
+            "position": soldier.get_position_display(),
+            "company": soldier.company,
+            "platoon": soldier.platoon,
+            "score": soldier.score,
+        },
+        "upcoming_leaves": leaves_data,
+        "preferences": pref_data
+    })

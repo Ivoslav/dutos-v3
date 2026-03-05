@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Soldier, DutyType, DutyShift, Leave, ShiftPreference
+from .models import AuthorizedDevice, Soldier, DutyType, DutyShift, Leave, ShiftPreference
 
 @admin.register(ShiftPreference)
 class ShiftPreferenceAdmin(admin.ModelAdmin):
@@ -60,3 +60,4 @@ class LeaveAdmin(admin.ModelAdmin):
 
 # 4. Другите модели
 admin.site.register(DutyType)
+admin.site.register(AuthorizedDevice)

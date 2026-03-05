@@ -1,4 +1,5 @@
 from django.db import models
+from django.contrib.auth.models import User
 
 # Звания (спрямо твоята йерархия)
 RANK_CHOICES = [
@@ -84,6 +85,8 @@ class Soldier(models.Model):
 
     score = models.IntegerField(default=0, verbose_name="Натрупани точки")
     is_active = models.BooleanField(default=True, verbose_name="Активен")
+    
+    user = models.OneToOneField(User, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Потребителски акаунт")
     
     def save(self, *args, **kwargs):
         if self.faculty_number and len(self.faculty_number) > 2:
@@ -262,3 +265,27 @@ class ShiftPreference(models.Model):
         verbose_name_plural = "Желания за наряди"
         # Един човек не може да има две различни желания за един и същи ден
         unique_together = ('soldier', 'date')
+        
+# ==========================================
+# 🛡️ ZERO TRUST & УСТРОЙСТВА
+# ==========================================
+class AuthorizedDevice(models.Model):
+    soldier = models.ForeignKey(Soldier, on_delete=models.CASCADE, verbose_name="Военнослужещ")
+    
+    device_id = models.CharField(max_length=255, unique=True, verbose_name="Хардуерно ID")
+    
+    device_name = models.CharField(max_length=100, blank=True, verbose_name="Име на устройството")
+    
+    public_key = models.TextField(blank=True, null=True, verbose_name="Биометричен публичен ключ")
+    
+    last_ip_address = models.GenericIPAddressField(null=True, blank=True, verbose_name="Последно IP")
+    last_login = models.DateTimeField(auto_now=True, verbose_name="Последна активност")
+    
+    is_active = models.BooleanField(default=True, verbose_name="Активно/Разрешено")
+
+    def __str__(self):
+        return f"{self.device_name} ({self.soldier.last_name})"
+
+    class Meta:
+        verbose_name = "Оторизирано устройство"
+        verbose_name_plural = "Оторизирани устройства"
