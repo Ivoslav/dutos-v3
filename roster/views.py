@@ -1,3 +1,6 @@
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny, AllowAny, IsAuthenticated
+from rest_framework.response import Response
 from django.core.management import call_command
 from io import StringIO
 from django.contrib.auth.decorators import user_passes_test
@@ -6,7 +9,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from datetime import timedelta
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.permissions import AllowAny
-from .models import Announcement, DutyShift, DutyType, Soldier, Leave, Announcement, ShiftPreference, AuthorizedDevice
+from .models import Announcement, DutyShift, DutyType, Soldier, Leave, Announcement, ShiftPreference, AuthorizedDevice, ShiftSwapRequest
 from .forms import DutyShiftForm, BatchLeaveForm
 from django.db.models import Count, Q, Case, When, Value, IntegerField
 from django.contrib import messages
@@ -595,39 +598,155 @@ def _generate_smart_month(year, month):
                     date=current_date, duty_type=duty, soldier=s, status='admin_draft'
                 )
 
-
-# --- 2. ИЗГЛЕДЪТ ЗА АДМИНА ---
+# ==========================================
+# ⚖️ КАПИТАНСКИ ПУЛТ ЗА СМЕНИ (БОРСА)
+# ==========================================
 @user_passes_test(lambda u: u.is_superuser)
-def monthly_planner(request):
-    today = datetime.date.today()
-    # По подразбиране предлагаме следващия месец
-    next_month_date = (today.replace(day=28) + timedelta(days=4))
-    target_year = next_month_date.year
-    target_month = next_month_date.month
-
+def swap_manager(request):
     if request.method == 'POST':
-        target_year = int(request.POST.get('year'))
-        target_month = int(request.POST.get('month'))
+        swap_id = request.POST.get('swap_id')
+        action = request.POST.get('action') # 'approve' или 'reject'
         
-        # Стартираме умния алгоритъм
-        _generate_smart_month(target_year, target_month)
+        swap = get_object_or_404(ShiftSwapRequest, id=swap_id)
         
-        messages.success(request, f"✅ Скритата чернова за {target_month}/{target_year} е генерирана успешно и чака преглед!")
-        return redirect('monthly_planner')
+        if action == 'approve' and swap.status == 'waiting':
+            with transaction.atomic(): # Транзакция, за да сме сигурни, че всичко минава заедно
+                old_soldier = swap.requester
+                new_soldier = swap.substitute
+                shift = swap.shift
+                duty_weight = shift.duty_type.weight
+                
+                # 1. Разменяме точките
+                old_soldier.score -= duty_weight
+                if old_soldier.score < 0: old_soldier.score = 0
+                old_soldier.save()
+                
+                new_soldier.score += duty_weight
+                new_soldier.save()
+                
+                # 2. Разменяме наряда
+                shift.soldier = new_soldier
+                shift.save()
+                
+                # 3. Затваряме заявката
+                swap.status = 'approved'
+                swap.save()
+                
+                messages.success(request, f"✅ Смяната е ОДОБРЕНА: {old_soldier.last_name} предава наряда на {new_soldier.last_name}.")
+                
+        elif action == 'reject':
+            swap.status = 'rejected'
+            swap.save()
+            messages.warning(request, "❌ Смяната беше отхвърлена.")
+            
+        return redirect('swap_manager')
 
-    # Взимаме статистика колко чернови имаме генерирани
-    draft_count = DutyShift.objects.filter(date__year=target_year, date__month=target_month, status='admin_draft').count()
+    # Взимаме чакащите одобрение и тези, които още висят на борсата
+    pending_swaps = ShiftSwapRequest.objects.filter(status='waiting').select_related('shift', 'requester', 'substitute')
+    open_swaps = ShiftSwapRequest.objects.filter(status='open').select_related('shift', 'requester')
 
+    context = {
+        'pending_swaps': pending_swaps,
+        'open_swaps': open_swaps,
+    }
+    return render(request, 'roster/swap_manager.html', context)
+
+# ==========================================
+# ⚙️ ЕДИНЕН МЕСЕЧЕН КОМАНДЕН ЦЕНТЪР
+# ==========================================
+@user_passes_test(lambda u: u.is_superuser)
+def roster_lifecycle(request):
+    today = datetime.date.today()
+    # Взимаме месеца от URL-а (или по подразбиране следващия)
+    next_month_date = (today.replace(day=28) + timedelta(days=4))
+    target_year = int(request.GET.get('year', next_month_date.year))
+    target_month = int(request.GET.get('month', next_month_date.month))
+
+    # 1. ОПРЕДЕЛЯНЕ НА ТЕКУЩАТА ФАЗА
+    shifts = DutyShift.objects.filter(date__year=target_year, date__month=target_month)
+    
+    if not shifts.exists():
+        phase = 1 # СТЪПКА 1: Няма наряди (Събиране на желания)
+    elif shifts.filter(status='admin_draft').exists():
+        phase = 2 # СТЪПКА 2: Капитанска чернова (Скрити от курсантите)
+    elif shifts.filter(status='public_draft').exists():
+        phase = 3 # СТЪПКА 3: Отворена Борса (Курсантите се разменят)
+    else:
+        phase = 4 # СТЪПКА 4: Утвърден график (Всичко е official)
+
+    # 2. ОБРАБОТКА НА ДЕЙСТВИЯТА (БУТОНИТЕ)
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        
+        # --- ФАЗА 1 -> ФАЗА 2: Генериране на чернова ---
+        if action == 'generate':
+            _generate_smart_month(target_year, target_month) # Викаме твоя алгоритъм
+            messages.success(request, f"✅ Черновата за {target_month}/{target_year} е генерирана и чака твоя преглед!")
+            
+        # --- ФАЗА 2 -> ФАЗА 3: Публикуване на борсата ---
+        elif action == 'publish':
+            shifts.filter(status='admin_draft').update(status='public_draft')
+            messages.warning(request, "📢 Графикът е публикуван! Курсантите вече го виждат в приложението и могат да търсят смени.")
+            
+        # --- ФАЗА 3: Управление на конкретна смяна ---
+        elif action in ['approve_swap', 'reject_swap']:
+            swap_id = request.POST.get('swap_id')
+            swap = get_object_or_404(ShiftSwapRequest, id=swap_id)
+            
+            if action == 'approve_swap' and swap.status == 'waiting':
+                with transaction.atomic():
+                    # 1. Разменяме точките
+                    old_soldier = swap.requester
+                    new_soldier = swap.substitute
+                    duty_weight = swap.shift.duty_type.weight
+                    
+                    old_soldier.score = max(0, old_soldier.score - duty_weight)
+                    old_soldier.save()
+                    new_soldier.score += duty_weight
+                    new_soldier.save()
+                    
+                    # 2. Сменяме човека в наряда
+                    swap.shift.soldier = new_soldier
+                    swap.shift.save()
+                    
+                    # 3. Затваряме заявката
+                    swap.status = 'approved'
+                    swap.save()
+                    messages.success(request, f"✅ Смяната е ОДОБРЕНА: {new_soldier.last_name} поема наряда.")
+            
+            elif action == 'reject_swap':
+                swap.status = 'rejected'
+                swap.save()
+                messages.error(request, "❌ Смяната беше отхвърлена.")
+
+        # --- ФАЗА 3 -> ФАЗА 4: Финализиране и Утвърждаване ---
+        elif action == 'finalize':
+            # Убиваме всички останали висящи смени на борсата
+            ShiftSwapRequest.objects.filter(
+                shift__date__year=target_year, shift__date__month=target_month, status__in=['open', 'waiting']
+            ).update(status='rejected')
+            # Правим графика официален
+            shifts.filter(status='public_draft').update(status='official')
+            messages.success(request, "🔒 Графикът е УТВЪРДЕН! Борсата за този месец е затворена.")
+
+        # Рефрешваме страницата след действие
+        return redirect(f"/roster/lifecycle/?year={target_year}&month={target_month}")
+
+    # 3. ПОДГОТОВКА НА ДАННИТЕ ЗА ИЗГЛЕДА
     context = {
         'target_year': target_year,
         'target_month': target_month,
-        'draft_count': draft_count,
+        'phase': phase,
+        'shifts_count': shifts.count(),
     }
-    return render(request, 'roster/monthly_planner.html', context)
+    
+    if phase == 1:
+        context['pref_count'] = ShiftPreference.objects.filter(date__year=target_year, date__month=target_month).values('soldier').distinct().count()
+    elif phase == 3:
+        context['pending_swaps'] = ShiftSwapRequest.objects.filter(shift__date__year=target_year, shift__date__month=target_month, status='waiting')
+        context['open_swaps'] = ShiftSwapRequest.objects.filter(shift__date__year=target_year, shift__date__month=target_month, status='open')
 
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import AllowAny, AllowAny, IsAuthenticated
-from rest_framework.response import Response
+    return render(request, 'roster/roster_lifecycle.html', context)
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -825,3 +944,171 @@ def api_profile(request):
         "upcoming_leaves": leaves_data,
         "preferences": pref_data
     })
+    
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def api_daily_roster(request):
+    date_str = request.GET.get('date')
+    
+    if date_str:
+        try:
+            target_date = datetime.datetime.strptime(date_str, '%Y-%m-%d').date()
+        except ValueError:
+            return Response({"detail": "Грешен формат на датата. Използвайте YYYY-MM-DD."}, status=400)
+    else:
+        target_date = datetime.date.today()
+
+    shifts = DutyShift.objects.filter(
+        date=target_date
+    ).exclude(status='admin_draft').select_related('soldier', 'duty_type').order_by('-duty_type__weight')
+    
+    data = []
+    for shift in shifts:
+        data.append({
+            "duty_name": shift.duty_type.name,
+            "soldier_name": f"{shift.soldier.rank_title} {shift.soldier.smart_name}",
+            "company": shift.soldier.company,
+            "status": shift.status # public_draft или official
+        })
+        
+    return Response({
+        "status": "success",
+        "date": target_date.strftime('%Y-%m-%d'),
+        "shifts": data
+    })
+    
+from .models import ShiftSwapRequest
+
+# --- БОРСА 1: Виж какво има на борсата (GET) ---
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def api_market_list(request):
+    """ Връща всички наряди, които в момента търсят заместник """
+    # Взимаме само отворените заявки от бъдещи дати
+    open_requests = ShiftSwapRequest.objects.filter(
+        status='open',
+        shift__date__gte=datetime.date.today()
+    ).select_related('shift', 'shift__duty_type', 'requester')
+
+    data = []
+    for req in open_requests:
+        data.append({
+            "swap_id": req.id,
+            "date": req.shift.date.strftime('%Y-%m-%d'),
+            "duty_name": req.shift.duty_type.name,
+            "requester_name": f"{req.requester.rank_title} {req.requester.last_name}",
+            "reason": req.reason
+        })
+        
+    return Response({"status": "success", "market_items": data})
+
+
+# --- БОРСА 2: Пусни твоя наряд на борсата (POST) ---
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def api_market_put(request):
+    """ Курсант пуска свой наряд на борсата """
+    soldier = request.user.soldier
+    shift_id = request.data.get('shift_id')
+    reason = request.data.get('reason')
+
+    if not shift_id or not reason:
+        return Response({"detail": "Липсват данни (shift_id, reason)."}, status=400)
+
+    try:
+        shift = DutyShift.objects.get(id=shift_id, soldier=soldier)
+    except DutyShift.DoesNotExist:
+        return Response({"detail": "Този наряд не е твой или не съществува."}, status=403)
+
+    if shift.date < datetime.date.today():
+        return Response({"detail": "Не можеш да сменяш минали наряди."}, status=400)
+
+    # Създаваме заявката в Борсата
+    swap, created = ShiftSwapRequest.objects.get_or_create(
+        shift=shift,
+        defaults={'requester': soldier, 'reason': reason}
+    )
+
+    if not created:
+        return Response({"detail": "Този наряд вече е пуснат на борсата!"}, status=400)
+
+    return Response({"status": "success", "message": "Нарядът е пуснат на борсата успешно!"})
+
+
+# --- БОРСА 3: Вземи чужд наряд от борсата (POST) ---
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def api_market_take(request):
+    """ Друг курсант се съгласява да вземе наряда """
+    soldier = request.user.soldier
+    swap_id = request.data.get('swap_id')
+
+    swap = get_object_or_404(ShiftSwapRequest, id=swap_id)
+
+    if swap.status != 'open':
+        return Response({"detail": "Този наряд вече не е наличен на борсата."}, status=400)
+    
+    if swap.requester == soldier:
+        return Response({"detail": "Не можеш да вземеш собствения си наряд."}, status=400)
+
+    # Проверяваме дали кандидатът вече няма наряд на тази дата
+    if DutyShift.objects.filter(soldier=soldier, date=swap.shift.date).exists():
+        return Response({"detail": "Вече имаш друг наряд на тази дата!"}, status=400)
+
+    # Променяме статуса и записваме кандидата
+    swap.substitute = soldier
+    swap.status = 'waiting' # Чака Капитана!
+    swap.save()
+
+    return Response({"status": "success", "message": "Ти предложи да вземеш наряда. Чака се одобрение от Капитан."})
+
+# ==========================================
+# 🖨️ ЕКСПОРТ НА ГРАФИКА ЗА ПРИНТЕР (PDF)
+# ==========================================
+from collections import OrderedDict
+
+@user_passes_test(lambda u: u.is_superuser)
+def monthly_export_print(request, year, month):
+    # Взимаме САМО утвърдените наряди
+    shifts = DutyShift.objects.filter(
+        date__year=year, 
+        date__month=month,
+        status='official'
+    ).select_related('soldier', 'duty_type', 'soldier__rank_group').order_by(
+        '-soldier__rank_group__priority', 'soldier__last_name', 'date'
+    )
+    
+    # Речник за структуриране: { '5-ти курс': { soldier_id: { 'soldier': obj, 'shifts': [shift1, shift2] } } }
+    course_data = OrderedDict()
+    
+    for shift in shifts:
+        course = shift.soldier.rank_group.name
+        if course not in course_data:
+            course_data[course] = OrderedDict()
+            
+        s_id = shift.soldier.id
+        if s_id not in course_data[course]:
+            course_data[course][s_id] = {
+                'soldier': shift.soldier,
+                'shifts': []
+            }
+            
+        course_data[course][s_id]['shifts'].append(shift)
+        
+    # Преобразуваме речниците в списъци, за да е лесно за HTML шаблона
+    final_export_data = []
+    for course, soldiers_dict in course_data.items():
+        final_export_data.append({
+            'course_name': course,
+            'records': list(soldiers_dict.values())
+        })
+        
+    month_date = datetime.date(year, month, 1)
+    
+    context = {
+        'year': year,
+        'month': month,
+        'month_date': month_date,
+        'export_data': final_export_data,
+    }
+    return render(request, 'roster/monthly_print.html', context)

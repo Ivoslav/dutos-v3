@@ -1,0 +1,90 @@
+{% extends 'roster/base.html' %}
+
+{% block title %}Борса за смени{% endblock %}
+
+{% block content %}
+<div class="mt-4 mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="display-6 fw-bold">🔄 Управление на смените</h1>
+        <a href="{% url 'roster_home' %}" class="btn btn-outline-secondary fw-bold">⬅️ Назад</a>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-md-7">
+            <h4 class="text-warning mb-3 fw-bold">🟡 Чакат Одобрение ({{ pending_swaps|length }})</h4>
+            
+            {% for swap in pending_swaps %}
+            <div class="card shadow-sm border-warning mb-3">
+                <div class="card-header bg-warning text-dark fw-bold d-flex justify-content-between">
+                    <span>📅 Наряд: {{ swap.shift.date|date:"d.m.Y" }} ({{ swap.shift.duty_type.name }})</span>
+                    <span>Точки: {{ swap.shift.duty_type.weight }}</span>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center align-items-center">
+                        <div class="col-5">
+                            <div class="text-muted small">Титуляр (Иска смяна)</div>
+                            <h5 class="fw-bold text-danger">{{ swap.requester.rank_title }} {{ swap.requester.last_name }}</h5>
+                            <span class="badge bg-secondary">{{ swap.requester.company }} рота</span>
+                        </div>
+                        <div class="col-2">
+                            <i class="bi bi-arrow-right-circle text-muted fs-2"></i>
+                        </div>
+                        <div class="col-5">
+                            <div class="text-muted small">Кандидат-заместник</div>
+                            <h5 class="fw-bold text-success">{{ swap.substitute.rank_title }} {{ swap.substitute.last_name }}</h5>
+                            <span class="badge bg-secondary">{{ swap.substitute.company }} рота</span>
+                        </div>
+                    </div>
+                    <hr>
+                    <p class="mb-0 text-muted small"><strong>Причина на титуляра:</strong> {{ swap.reason }}</p>
+                </div>
+                <div class="card-footer bg-light d-flex justify-content-end gap-2">
+                    <form method="post" action="{% url 'swap_manager' %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="swap_id" value="{{ swap.id }}">
+                        <input type="hidden" name="action" value="reject">
+                        <button type="submit" class="btn btn-outline-danger fw-bold">❌ Отхвърли</button>
+                    </form>
+                    <form method="post" action="{% url 'swap_manager' %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="swap_id" value="{{ swap.id }}">
+                        <input type="hidden" name="action" value="approve">
+                        <button type="submit" class="btn btn-success fw-bold">✅ ОДОБРЯВАМ СМЯНАТА</button>
+                    </form>
+                </div>
+            </div>
+            {% empty %}
+            <div class="alert alert-light border text-center text-muted">
+                Няма чакащи заявки за одобрение в момента.
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="col-md-5">
+            <h4 class="text-primary mb-3 fw-bold">🟢 Търсят Заместник ({{ open_swaps|length }})</h4>
+            
+            <div class="list-group shadow-sm">
+                {% for swap in open_swaps %}
+                <div class="list-group-item list-group-item-action flex-column align-items-start">
+                    <div class="d-flex w-100 justify-content-between">
+                        <h6 class="mb-1 fw-bold">{{ swap.requester.last_name }} ({{ swap.shift.duty_type.name }})</h6>
+                        <small class="text-muted">{{ swap.shift.date|date:"d.m.Y" }}</small>
+                    </div>
+                    <p class="mb-1 small text-muted">Причина: {{ swap.reason }}</p>
+                    <form method="post" action="{% url 'swap_manager' %}" class="mt-2 text-end">
+                        {% csrf_token %}
+                        <input type="hidden" name="swap_id" value="{{ swap.id }}">
+                        <input type="hidden" name="action" value="reject">
+                        <button type="submit" class="btn btn-sm btn-outline-secondary">Премахни от Борсата</button>
+                    </form>
+                </div>
+                {% empty %}
+                <div class="list-group-item text-center text-muted">
+                    Борсата е празна.
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,157 @@
+{% extends 'roster/base.html' %}
+
+{% block title %}Месечен Команден Център{% endblock %}
+
+{% block content %}
+<div class="mt-4 mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-5">
+        <h1 class="display-6 fw-bold text-light">⚙️ Команден Център</h1>
+        
+        <form method="get" class="d-flex gap-2">
+            <select name="month" class="form-select form-select-sm bg-dark text-light border-secondary" onchange="this.form.submit()">
+                <option value="1" {% if target_month == 1 %}selected{% endif %}>Януари</option>
+                <option value="2" {% if target_month == 2 %}selected{% endif %}>Февруари</option>
+                <option value="3" {% if target_month == 3 %}selected{% endif %}>Март</option>
+                <option value="4" {% if target_month == 4 %}selected{% endif %}>Април</option>
+                <option value="5" {% if target_month == 5 %}selected{% endif %}>Май</option>
+                <option value="6" {% if target_month == 6 %}selected{% endif %}>Юни</option>
+            </select>
+            <input type="number" name="year" value="{{ target_year }}" class="form-control form-control-sm bg-dark text-light border-secondary" style="width: 80px;" onchange="this.form.submit()">
+        </form>
+    </div>
+
+    <div class="position-relative my-5 mx-2">
+        <div class="progress position-absolute top-50 start-50 translate-middle shadow-sm" style="width: 90%; height: 6px; z-index: 0; background-color: #343a40;">
+            <div class="progress-bar bg-primary" role="progressbar" 
+                 style="width: {% if phase == 1 %}0%{% elif phase == 2 %}33.3%{% elif phase == 3 %}66.6%{% else %}100%{% endif %}; transition: width 0.8s ease-in-out;">
+            </div>
+        </div>
+        
+        <div class="d-flex justify-content-between position-relative" style="z-index: 1;">
+            
+            <div class="text-center" style="width: 120px;">
+                <div class="mx-auto mb-2 text-white d-flex align-items-center justify-content-center fw-bold fs-5 shadow-sm 
+                            {% if phase > 1 %}bg-success border-success{% elif phase == 1 %}bg-primary border-primary{% else %}bg-dark border-secondary{% endif %}" 
+                     style="width: 55px; height: 55px; border-radius: 50%; border: 4px solid; transition: 0.3s;">
+                    {% if phase > 1 %}<i class="bi bi-check-lg fs-3"></i>{% else %}1{% endif %}
+                </div>
+                <div class="fw-bold small text-uppercase {% if phase > 1 %}text-success{% elif phase == 1 %}text-primary{% else %}text-muted{% endif %}">Подготовка</div>
+            </div>
+            
+            <div class="text-center" style="width: 120px;">
+                <div class="mx-auto mb-2 text-white d-flex align-items-center justify-content-center fw-bold fs-5 shadow-sm 
+                            {% if phase > 2 %}bg-success border-success{% elif phase == 2 %}bg-primary border-primary{% else %}bg-dark border-secondary{% endif %}" 
+                     style="width: 55px; height: 55px; border-radius: 50%; border: 4px solid; transition: 0.3s;">
+                    {% if phase > 2 %}<i class="bi bi-check-lg fs-3"></i>{% else %}2{% endif %}
+                </div>
+                <div class="fw-bold small text-uppercase {% if phase > 2 %}text-success{% elif phase == 2 %}text-primary{% else %}text-muted{% endif %}">Чернова</div>
+            </div>
+
+            <div class="text-center" style="width: 120px;">
+                <div class="mx-auto mb-2 text-white d-flex align-items-center justify-content-center fw-bold fs-5 shadow-sm 
+                            {% if phase > 3 %}bg-success border-success{% elif phase == 3 %}bg-primary border-primary{% else %}bg-dark border-secondary{% endif %}" 
+                     style="width: 55px; height: 55px; border-radius: 50%; border: 4px solid; transition: 0.3s;">
+                    {% if phase > 3 %}<i class="bi bi-check-lg fs-3"></i>{% else %}3{% endif %}
+                </div>
+                <div class="fw-bold small text-uppercase {% if phase > 3 %}text-success{% elif phase == 3 %}text-primary{% else %}text-muted{% endif %}">Борса / Смени</div>
+            </div>
+
+            <div class="text-center" style="width: 120px;">
+                <div class="mx-auto mb-2 text-white d-flex align-items-center justify-content-center fw-bold fs-5 shadow-sm 
+                            {% if phase == 4 %}bg-success border-success{% else %}bg-dark border-secondary{% endif %}" 
+                     style="width: 55px; height: 55px; border-radius: 50%; border: 4px solid; transition: 0.3s;">
+                    <i class="bi bi-shield-lock-fill fs-4"></i>
+                </div>
+                <div class="fw-bold small text-uppercase {% if phase == 4 %}text-success{% else %}text-muted{% endif %}">Утвърден</div>
+            </div>
+            
+        </div>
+    </div>
+    <div class="card shadow-lg border-0 bg-dark text-light mb-5">
+        <div class="card-body p-5 text-center border border-secondary rounded">
+
+            {% if phase == 1 %}
+                <i class="bi bi-inboxes text-muted display-1 mb-3"></i>
+                <h3 class="fw-bold text-light">Графикът все още не е създаден</h3>
+                <p class="text-secondary fs-5">До момента <strong class="text-primary">{{ pref_count }}</strong> курсанти са пуснали своите желания за този месец.</p>
+                <form method="post" class="mt-4">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="generate">
+                    <button type="submit" class="btn btn-primary btn-lg fw-bold px-5 rounded-pill shadow-lg">
+                        <i class="bi bi-robot"></i> Пусни Алгоритъма
+                    </button>
+                </form>
+
+            {% elif phase == 2 %}
+                <i class="bi bi-file-earmark-lock text-warning display-1 mb-3"></i>
+                <h3 class="fw-bold text-light">Капитанска Чернова</h3>
+                <p class="text-secondary fs-5">Генерирани са <strong>{{ shifts_count }}</strong> наряда. <br>Те са скрити от курсантите. Можеш да отвориш Календара, да ги разгледаш и да направиш ръчни корекции.</p>
+                
+                <div class="d-flex justify-content-center gap-3 mt-4">
+                    <a href="{% url 'roster_calendar' %}?year={{ target_year }}&month={{ target_month }}" class="btn btn-outline-light fw-bold px-4">📅 Виж Календара</a>
+                    <form method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="publish">
+                        <button type="submit" class="btn btn-warning text-dark fw-bold px-5 shadow-lg">
+                            <i class="bi bi-megaphone"></i> Обяви за Обсъждане (Към Борса)
+                        </button>
+                    </form>
+                </div>
+
+            {% elif phase == 3 %}
+                <i class="bi bi-arrow-left-right text-primary display-1 mb-3"></i>
+                <h3 class="fw-bold text-light">Отворена Борса</h3>
+                <p class="text-secondary fs-5">Графикът се вижда от всички. Курсантите търсят смени през мобилното приложение.</p>
+
+                <div class="text-start mt-4">
+                    <h5 class="fw-bold text-warning border-bottom border-secondary pb-2 mb-3">🟡 Чакат твоето одобрение ({{ pending_swaps|length }})</h5>
+                    <div class="row">
+                        {% for swap in pending_swaps %}
+                        <div class="col-md-6">
+                            <div class="card border-warning bg-dark mb-3 shadow">
+                                <div class="card-body">
+                                    <div class="small text-secondary mb-2">Наряд: <strong class="text-light">{{ swap.shift.date|date:"d.m.Y" }} ({{ swap.shift.duty_type.name }})</strong></div>
+                                    <div class="d-flex justify-content-between align-items-center fw-bold fs-5">
+                                        <span class="text-danger">{{ swap.requester.last_name }}</span>
+                                        <i class="bi bi-arrow-right text-secondary fs-3"></i>
+                                        <span class="text-success">{{ swap.substitute.last_name }}</span>
+                                    </div>
+                                    <div class="mt-3 d-flex gap-2">
+                                        <form method="post" class="w-50"><input type="hidden" name="action" value="reject_swap"><input type="hidden" name="swap_id" value="{{ swap.id }}">{% csrf_token %}<button class="btn btn-sm btn-outline-danger w-100">Откажи</button></form>
+                                        <form method="post" class="w-50"><input type="hidden" name="action" value="approve_swap"><input type="hidden" name="swap_id" value="{{ swap.id }}">{% csrf_token %}<button class="btn btn-sm btn-success w-100 fw-bold">Одобри</button></form>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="col-12 text-secondary fst-italic">Няма чакащи смени в момента.</div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <hr class="my-5 border-secondary">
+                <form method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="finalize">
+                    <button type="submit" class="btn btn-danger btn-lg fw-bold px-5 shadow-lg" onclick="return confirm('Сигурен ли си? Това ще затвори борсата и ще заключи графика!')">
+                        <i class="bi bi-lock-fill"></i> Затвори Борсата и Утвърди Графика
+                    </button>
+                </form>
+
+            {% elif phase == 4 %}
+                <i class="bi bi-shield-check text-success display-1 mb-3"></i>
+                <h3 class="fw-bold text-success">Графикът е Утвърден</h3>
+                <p class="text-secondary fs-5">Всички смени са заключени. Месецът е готов за разпечатване.</p>
+                <div class="mt-4">
+                    <a href="{% url 'roster_calendar' %}?year={{ target_year }}&month={{ target_month }}" class="btn btn-outline-light fw-bold px-4 me-2">📅 Виж Календара</a>
+                    
+                    <a href="{% url 'monthly_export_print' target_year target_month %}" class="btn btn-secondary fw-bold px-4 shadow">
+                        <i class="bi bi-printer"></i> Експорт за Стената (PDF)
+                    </a>
+                </div>
+            {% endif %}
+
+        </div>
+    </div>
+</div>
+{% endblock %}

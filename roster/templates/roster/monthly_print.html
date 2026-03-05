@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+    <meta charset="UTF-8">
+    <title>График {{ month_date|date:"F Y" }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { 
+            font-family: "Times New Roman", Times, serif; 
+            font-size: 13px; 
+            background: white; 
+            color: black; 
+        }
+        /* ТЕЗИ ПРАВИЛА ВАЖАТ САМО КОГАТО СЕ ПРИНТИРА */
+        @media print {
+            .no-print { display: none !important; }
+            @page { size: A4 portrait; margin: 1cm; }
+            body { margin: 0; padding: 0; }
+            .course-section { page-break-inside: avoid; margin-bottom: 20px; }
+            tr { page-break-inside: avoid; }
+        }
+        .military-header { display: flex; justify-content: space-between; margin-bottom: 20px; }
+        .military-title { text-align: center; text-transform: uppercase; font-weight: bold; margin-bottom: 20px; font-size: 16px; }
+        
+        table th, table td { border: 1px solid black !important; padding: 4px 6px !important; vertical-align: middle; }
+        table th { background-color: #f8f9fa !important; font-weight: bold; text-align: center; }
+        
+        /* Стил за списъка с нарядите на конкретен човек */
+        .shift-list { margin: 0; padding-left: 0; list-style: none; }
+        .shift-item { border-bottom: 1px dotted #ccc; padding-bottom: 2px; margin-bottom: 2px; }
+        .shift-item:last-child { border-bottom: none; padding-bottom: 0; margin-bottom: 0; }
+    </style>
+</head>
+<body class="p-4">
+
+    <div class="no-print text-center mb-4 bg-light p-3 border rounded shadow-sm">
+        <button onclick="window.print()" class="btn btn-dark btn-lg px-5 fw-bold shadow">
+            🖨️ ПРИНТИРАЙ / ЗАПАЗИ КАТО PDF
+        </button>
+        <a href="javascript:history.back()" class="btn btn-outline-secondary btn-lg ms-3 fw-bold">⬅️ Назад</a>
+    </div>
+
+    <div class="military-header">
+        <div>
+            <p class="mb-0 fw-bold">ВВМУ "Н. Й. ВАПЦАРОВ"</p>
+            <p class="mb-0">Рег. № ........................</p>
+            <p class="mb-0">Екз. № 1</p>
+        </div>
+        <div class="text-center">
+            <p class="fw-bold mb-0">УТВЪРЖДАВАМ,</p>
+            <p class="mb-0 fw-bold">КОМАНДИР НА БАТАЛЬОН</p>
+            <p class="mt-4 mb-0">..............................................</p>
+            <p class="mb-0">/......................................../</p>
+        </div>
+    </div>
+
+    <div class="military-title">
+        Г Р А Ф И К<br>
+        за носене на дежурната служба през месец {{ month_date|date:"F Y" }} г.
+    </div>
+
+    {% for block in export_data %}
+    <div class="course-section">
+        <h6 class="fw-bold text-uppercase bg-light p-1 border border-dark border-bottom-0 mb-0 ps-2">⚓ {{ block.course_name }}</h6>
+        
+        <table class="table table-bordered border-dark table-sm mb-0">
+            <thead>
+                <tr>
+                    <th style="width: 4%;">№</th>
+                    <th style="width: 12%;">Звание</th>
+                    <th style="width: 25%;">Фамилия и Инициали</th>
+                    <th style="width: 14%;">Фак. №</th>
+                    <th style="width: 30%;">Дати и Вид Наряд</th>
+                    <th style="width: 15%;">Подпис</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for record in block.records %}
+                <tr>
+                    <td class="text-center align-middle">{{ forloop.counter }}</td>
+                    <td class="text-center align-middle">{{ record.soldier.rank_title }}</td>
+                    <td class="align-middle fw-bold">
+                        {{ record.soldier.last_name }} {{ record.soldier.first_name|slice:":1" }}.
+                        <div class="float-end fw-normal small text-muted">({{ record.soldier.company }} р.)</div>
+                    </td>
+                    <td class="text-center align-middle text-muted">{{ record.soldier.faculty_number }}</td>
+                    
+                    <td class="align-middle">
+                        <ul class="shift-list">
+                            {% for s in record.shifts %}
+                            <li class="shift-item">
+                                <strong>{{ s.date|date:"d.m" }}</strong> 
+                                <span class="small text-muted">({{ s.date|date:"D"|slice:":2" }})</span> 
+                                - {{ s.duty_type.name }}
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </td>
+                    
+                    <td class="align-middle"></td> 
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% empty %}
+        <div class="text-center py-4 border border-dark">Няма утвърдени наряди за този месец.</div>
+    {% endfor %}
+
+    <div class="mt-5 d-flex justify-content-between course-section">
+        <div>
+            <p class="fw-bold mb-0">ИЗГОТВИЛ:</p>
+            <p class="mb-0 fw-bold">КОМАНДИР НА РОТА</p>
+            <p class="mt-4">..............................................</p>
+            <p class="mb-0">/......................................../</p>
+        </div>
+    </div>
+
+</body>
+</html>

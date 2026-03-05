@@ -289,3 +289,34 @@ class AuthorizedDevice(models.Model):
     class Meta:
         verbose_name = "Оторизирано устройство"
         verbose_name_plural = "Оторизирани устройства"
+        
+# ==========================================
+# 🔄 БОРСА ЗА СМЕНИ (MARKETPLACE)
+# ==========================================
+class ShiftSwapRequest(models.Model):
+    STATUS_CHOICES = [
+        ('open', '🟢 Търси заместник (На Борсата)'),
+        ('waiting', '🟡 Има кандидат (Чака Капитана)'),
+        ('approved', '✅ Одобрена'),
+        ('rejected', '❌ Отхвърлена'),
+    ]
+
+    # Кой наряд искаме да сменим (OneToOne означава, че за един наряд може да има само една молба)
+    shift = models.OneToOneField(DutyShift, on_delete=models.CASCADE, verbose_name="Наряд")
+    
+    # Кой го дава и защо иска смяна
+    requester = models.ForeignKey(Soldier, on_delete=models.CASCADE, related_name='swap_requests', verbose_name="Титуляр")
+    reason = models.CharField(max_length=255, verbose_name="Основателна причина")
+    
+    # Кой се е съгласил да го вземе (първоначално е празно)
+    substitute = models.ForeignKey(Soldier, on_delete=models.SET_NULL, null=True, blank=True, related_name='swap_offers', verbose_name="Кандидат-заместник")
+    
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='open', verbose_name="Статус")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Смяна: {self.shift.date} ({self.requester.last_name})"
+
+    class Meta:
+        verbose_name = "Заявка за смяна (Борса)"
+        verbose_name_plural = "Борса за смени"
