@@ -79,9 +79,10 @@
                         <thead class="table-light">
                             <tr>
                                 <th>Име</th>
-                                <th>Рота</th>
+                                <th>Курс</th> <th>Рота</th>
                                 <th>Час Прибиране</th>
                                 <th>Бележка / Статус</th>
+                                <th class="text-end">Действие</th> </tr>
                             </tr>
                         </thead>
                         <tbody>
@@ -91,7 +92,8 @@
                                     <a href="#" class="text-decoration-none text-dark open-profile" data-url="{% url 'soldier_profile' l.soldier.id %}">
                                         {{ l.soldier.rank_title }} {{ l.soldier.last_name }}
                                     </a>
-                                </td>                                
+                                </td>
+                                <td><span class="badge bg-dark">{{ l.soldier.rank_group.name|slice:":5" }}</span></td>   
                                 <td><span class="badge bg-secondary">{{ l.soldier.company }} р.</span></td>
                                 <td>
                                     <strong class="text-primary">{{ l.end_date|date:"H:i" }}</strong>
@@ -104,6 +106,18 @@
                                         <span class="badge bg-success">Утвърден</span>
                                     {% endif %}
                                     <span class="small text-muted ms-1">{{ l.reason }}</span>
+                                </td>
+                                
+                                <td class="text-end">
+                                    <form method="post" class="d-inline" onsubmit="return confirm('Сигурен ли си, че искаш да го задраскаш от списъка за днес?');">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="date" value="{{ target_date|date:'Y-m-d' }}">
+                                        <input type="hidden" name="action" value="remove_leave">
+                                        <input type="hidden" name="leave_id" value="{{ l.id }}">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Премахни от списъка">
+                                            <i class="bi bi-x-lg fw-bold"></i>
+                                        </button>
+                                    </form>
                                 </td>
                             </tr>
                             {% empty %}

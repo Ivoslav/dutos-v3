@@ -634,12 +634,16 @@ def _generate_smart_month(year, month):
     _, num_days = calendar.monthrange(year, month)
     duties = DutyType.objects.all().order_by('-weight') # От най-тежките към най-леките
     
+    # --- НОВО 1: ГРАФИКЪТ Е ГОСПОДАР ---
+    # Изтриваме всички стари чернови за наряди
+    DutyShift.objects.filter(date__year=year, date__month=month, status='admin_draft').delete()
+    # Изтриваме всички автоматични градски отпуски (city) за месеца. 
+    # Те трябва да се пускат ЧАК СЛЕД като графикът е утвърден! (Домашните ДО и Болните си остават)
+    Leave.objects.filter(start_date__year=year, start_date__month=month, leave_type='city').delete()
+
     # Зареждаме виртуални точки (за да не пипаме базата докато е чернова)
     soldiers = Soldier.objects.filter(is_active=True)
     current_scores = {s.id: s.score for s in soldiers}
-    
-    # Изтриваме старите чернови за този месец (за да можем да прегенерираме)
-    DutyShift.objects.filter(date__year=year, date__month=month, status='admin_draft').delete()
 
     for day in range(1, num_days + 1):
         current_date = datetime.date(year, month, day)
@@ -656,14 +660,21 @@ def _generate_smart_month(year, month):
 
         for duty in duties:
             needed = duty.people_required
-            allowed_groups = duty.allowed_ranks.all() # ЗЛАТНОТО ПРАВИЛО (Курсовете)
+            allowed_groups = duty.allowed_ranks.all()
             
             candidates = soldiers.filter(rank_group__in=allowed_groups)
             valid_candidates = [c for c in candidates if c.id not in on_leave and c.id not in tired and c.id not in assigned_today]
             
+            # --- НОВО 2: ЕКСТРЕМЕН РЕЖИМ ---
+            if len(valid_candidates) < needed:
+                # Ако няма здрави и почивали хора, ЖЕРТВАМЕ ПОЧИВКАТА (взимаме уморените), 
+                # защото военен пост не може да остане празен!
+                desperate_candidates = [c for c in candidates if c.id not in on_leave and c.id not in assigned_today]
+                valid_candidates = desperate_candidates
+                
             if not valid_candidates:
-                continue # Ако буквално няма живи хора, прескачаме (или хвърляме грешка)
-            
+                continue # Ако буквално всички са болни/отпуск, тогава се предаваме
+                        
             # Разпределяме в кофи и сортираме по виртуалните точки
             volunteers = sorted([c for c in valid_candidates if c.id in wants], key=lambda x: current_scores[x.id])
             neutrals = sorted([c for c in valid_candidates if c.id not in wants and c.id not in cannots], key=lambda x: current_scores[x.id])
@@ -1406,10 +1417,25 @@ def daily_leave_manager(request):
             Leave.objects.filter(start_date__date=target_date, leave_type='city', status='draft').update(status='official')
             messages.warning(request, "📢 Отпуските са утвърдени! Вече се виждат в приложението и на КПП-то.")
 
+        # --- 4. ПРЕМАХВАНЕ НА КОНКРЕТЕН ЧОВЕК (НОВО) ---
+        elif action == 'remove_leave':
+            leave_id = request.POST.get('leave_id')
+            if leave_id:
+                leave_to_delete = get_object_or_404(Leave, id=leave_id)
+                soldier_name = leave_to_delete.soldier.last_name
+                leave_to_delete.delete()
+                messages.success(request, f"🗑️ {soldier_name} беше премахнат от списъка за днес.")
+
         return redirect(f"/roster/leaves/daily/?date={target_date.strftime('%Y-%m-%d')}")
+    
 
     # --- ДАННИ ЗА ИЗГЛЕДА ---
-    leaves = Leave.objects.filter(start_date__date=target_date, leave_type='city').select_related('soldier').order_by('soldier__company', 'soldier__last_name')
+    leaves = Leave.objects.filter(
+        start_date__date=target_date, 
+        leave_type__in=['city', 'home']
+    ).select_related('soldier', 'soldier__rank_group').order_by(
+        '-soldier__rank_group__priority', 'soldier__company', 'soldier__last_name'
+    )
     
     # За падащото меню изключваме хората, които вече имат генерирана отпуска днес
     busy_ids = leaves.values_list('soldier_id', flat=True)

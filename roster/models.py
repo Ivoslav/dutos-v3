@@ -225,28 +225,26 @@ class Leave(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='official', verbose_name="Статус")
 
     def save(self, *args, **kwargs):
-        conflicting_shifts = DutyShift.objects.filter(
-            soldier=self.soldier,
-            date__gte=self.start_date.date(),
-            date__lte=self.end_date.date()
-        )
+        # АКО ОТПУСКАТА НЕ Е ГРАДСКА (а е ДО, Болничен и т.н.), ТЯ ТРИЕ НАРЯДА!
+        if self.leave_type != 'city':
+            conflicting_shifts = DutyShift.objects.filter(
+                soldier=self.soldier,
+                date__gte=self.start_date.date(),
+                date__lte=self.end_date.date()
+            )
 
-        # 2. За всеки намерен конфликтен наряд:
-        for shift in conflicting_shifts:
-            # Връщаме точките на войника (тъй като нарядът пада)
-            soldier = shift.soldier
-            soldier.score -= shift.duty_type.weight
-            if soldier.score < 0: soldier.score = 0
-            soldier.save()
-            
-            # Изтриваме наряда
-            shift.delete()
+            # За всеки намерен конфликтен наряд:
+            for shift in conflicting_shifts:
+                soldier = shift.soldier
+                soldier.score -= shift.duty_type.weight
+                if soldier.score < 0: soldier.score = 0
+                soldier.save()
+                
+                # Изтриваме наряда
+                shift.delete()
 
-        # 3. Чак тогава записваме самата отпуска
+        # Записваме самата отпуска
         super(Leave, self).save(*args, **kwargs)
-
-    def __str__(self):
-        return f"{self.soldier.last_name} ({self.get_leave_type_display()})"
     
 class Announcement(models.Model):
     TARGET_CHOICES = [
