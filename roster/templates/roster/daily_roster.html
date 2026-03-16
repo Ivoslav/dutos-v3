@@ -128,46 +128,102 @@
         </div>
 
         <div class="tab-pane fade" id="stats">
-            <div class="accordion" id="reportAccordion">
-                {% for key, group in report.items %}
-                <div class="accordion-item mb-3 border-{{ group.class }} shadow-sm">
-                    <h2 class="accordion-header" id="heading{{ key }}">
-                        <button class="accordion-button {% if not forloop.first %}collapsed{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ key }}">
-                            <div class="d-flex w-100 justify-content-between align-items-center me-3 flex-wrap">
-                                <span class="fw-bold text-{{ group.class }} me-2">{{ group.name }}</span>
-                                <div style="font-size: 0.85rem" class="d-flex gap-1">
-                                    <span class="badge bg-secondary">Списък: {{ group.total }}</span>
-                                    <span class="badge bg-success">Налице: {{ group.present }}</span>
-                                    {% if group.duty %}<span class="badge bg-dark">Наряд: {{ group.duty|length }}</span>{% endif %}
-                                    {% if group.sick %}<span class="badge bg-danger">Болни: {{ group.sick|length }}</span>{% endif %}
-                                    {% if group.home %}<span class="badge bg-warning text-dark">ДО: {{ group.home|length }}</span>{% endif %}
-                                    {% if group.mission %}<span class="badge bg-primary">Ком: {{ group.mission|length }}</span>{% endif %}
+            
+            <ul class="nav nav-pills mb-4 justify-content-center bg-white p-2 rounded shadow-sm" id="timeTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active fw-bold px-4" id="morning-tab" data-bs-toggle="pill" data-bs-target="#morning" type="button" role="tab">☀️ Сутрешна проверка</button>
+                </li>
+                <li class="nav-item ms-2" role="presentation">
+                    <button class="nav-link fw-bold px-4 text-dark" id="evening-tab" data-bs-toggle="pill" data-bs-target="#evening" type="button" role="tab" style="background-color: #e9ecef;">🌙 Вечерна проверка</button>
+                </li>
+            </ul>
+
+            <div class="tab-content" id="timeTabsContent">
+                
+                <div class="tab-pane fade show active" id="morning" role="tabpanel">
+                    <div class="accordion" id="reportAccordionMorning">
+                        {% for key, group in report.items %}
+                        <div class="accordion-item mb-3 border-{{ group.class }} shadow-sm">
+                            <h2 class="accordion-header" id="headingMorning{{ key }}">
+                                <button class="accordion-button {% if not forloop.first %}collapsed{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#collapseMorning{{ key }}">
+                                    <div class="d-flex w-100 justify-content-between align-items-center me-3 flex-wrap">
+                                        <span class="fw-bold text-{{ group.class }} me-2">{{ group.name }}</span>
+                                        <div style="font-size: 0.85rem" class="d-flex gap-1 flex-wrap">
+                                            <span class="badge bg-secondary">Списък: {{ group.total }}</span>
+                                            <span class="badge bg-success shadow-sm">Налице: {{ group.present_morning }}</span>
+                                            {% if group.duty %}<span class="badge bg-secondary border border-light">Наряд: {{ group.duty|length }}</span>{% endif %}
+                                            {% if group.sick %}<span class="badge bg-danger">Болни: {{ group.sick|length }}</span>{% endif %}
+                                            {% if group.home %}<span class="badge bg-warning text-dark">ДО: {{ group.home|length }}</span>{% endif %}
+                                            {% if group.mission %}<span class="badge bg-primary">Ком: {{ group.mission|length }}</span>{% endif %}
+                                        </div>
+                                    </div>
+                                </button>
+                            </h2>
+                            <div id="collapseMorning{{ key }}" class="accordion-collapse collapse {% if forloop.first %}show{% endif %}" data-bs-parent="#reportAccordionMorning">
+                                <div class="accordion-body">
+                                    <table class="table table-bordered table-sm text-center mb-4">
+                                        <thead class="table-light"><tr><th>По списък</th><th class="text-success">Сутрин (Налице)</th><th class="table-active">Наряд</th><th class="text-danger">Болни</th><th class="text-warning">ДО</th><th class="text-primary">Ком.</th><th>Други</th></tr></thead>
+                                        <tbody class="fw-bold fs-5">
+                                            <tr><td>{{ group.total }}</td><td class="text-success bg-success bg-opacity-10">{{ group.present_morning }}</td><td>{{ group.duty|length }}</td><td class="text-danger">{{ group.sick|length }}</td><td class="text-warning">{{ group.home|length }}</td><td class="text-primary">{{ group.mission|length }}</td><td>{{ group.other|length }}</td></tr>
+                                        </tbody>
+                                    </table>
+                                    <div class="row g-3">
+                                        {% if group.duty %}<div class="col-md-6"><div class="card h-100 border-secondary shadow-sm"><div class="card-header bg-secondary text-white py-1 fw-bold">💂 В Наряд ({{ group.duty|length }})</div><ul class="list-group list-group-flush small">{% for s in group.duty %}<li class="list-group-item d-flex justify-content-between align-items-center"><span>{{ s.soldier.rank_title }} <strong>{{ s.soldier.last_name }}</strong></span><span class="badge bg-secondary">{{ s.duty_type.short_name|default:s.duty_type.name }}</span></li>{% endfor %}</ul></div></div>{% endif %}
+                                        {% if group.sick %}<div class="col-md-6"><div class="card h-100 border-danger shadow-sm"><div class="card-header bg-danger text-white py-1 fw-bold">🤒 Болни / Лазарет ({{ group.sick|length }})</div><ul class="list-group list-group-flush small">{% for l in group.sick %}<li class="list-group-item d-flex justify-content-between align-items-center"><strong>{{ l.soldier.last_name }}</strong><span class="text-muted small">{{ l.reason|default:"Заболяване" }}</span></li>{% endfor %}</ul></div></div>{% endif %}
+                                        {% if group.home %}<div class="col-md-6"><div class="card h-100 border-warning shadow-sm"><div class="card-header bg-warning text-dark py-1 fw-bold">🏠 Домашен Отпуск ({{ group.home|length }})</div><ul class="list-group list-group-flush small">{% for l in group.home %}<li class="list-group-item d-flex justify-content-between align-items-center"><strong>{{ l.soldier.last_name }}</strong><div class="text-end"><span class="text-muted small d-block" style="font-size: 0.75rem;">до {{ l.end_date|date:"d.m" }}</span></div></li>{% endfor %}</ul></div></div>{% endif %}
+                                        {% if group.mission %}<div class="col-md-6"><div class="card h-100 border-primary shadow-sm"><div class="card-header bg-primary text-white py-1 fw-bold">✈️ Командировка ({{ group.mission|length }})</div><ul class="list-group list-group-flush small">{% for l in group.mission %}<li class="list-group-item d-flex justify-content-between align-items-center"><strong>{{ l.soldier.last_name }}</strong><span class="text-muted small">{{ l.reason|default:"По служба" }}</span></li>{% endfor %}</ul></div></div>{% endif %}
+                                    </div>
                                 </div>
                             </div>
-                        </button>
-                    </h2>
-                    <div id="collapse{{ key }}" class="accordion-collapse collapse {% if forloop.first %}show{% endif %}" data-bs-parent="#reportAccordion">
-                        <div class="accordion-body">
-                            <table class="table table-bordered table-sm text-center mb-4">
-                                <thead class="table-light"><tr><th>По списък</th><th class="text-success">Налице</th><th class="table-active">Наряд</th><th class="text-danger">Болни</th><th class="text-warning">ДО</th><th class="text-primary">Ком.</th><th>Други</th></tr></thead>
-                                <tbody class="fw-bold fs-5">
-                                    <tr>
-                                        <td>{{ group.total }}</td><td class="text-success">{{ group.present }}</td><td>{{ group.duty|length }}</td><td class="text-danger">{{ group.sick|length }}</td><td class="text-warning">{{ group.home|length }}</td><td class="text-primary">{{ group.mission|length }}</td><td>{{ group.other|length }}</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                            <div class="row g-3">
-                                {% if group.duty %}
-                                <div class="col-md-6"><div class="card h-100 border-secondary"><div class="card-header bg-secondary text-white py-1">💂 Наряд</div><ul class="list-group list-group-flush small">{% for s in group.duty %}<li class="list-group-item d-flex justify-content-between"><span>{{ s.soldier.last_name }}</span><strong>{{ s.duty_type.name }}</strong></li>{% endfor %}</ul></div></div>
-                                {% endif %}
-                                {% if group.sick %}
-                                <div class="col-md-6"><div class="card h-100 border-danger"><div class="card-header bg-danger text-white py-1">🤒 Болни</div><ul class="list-group list-group-flush small">{% for l in group.sick %}<li class="list-group-item"><strong>{{ l.soldier.last_name }}</strong><span class="text-muted"> - {{ l.reason|default:"Болест" }}</span></li>{% endfor %}</ul></div></div>
-                                {% endif %}
-                                </div>
                         </div>
+                        {% endfor %}
                     </div>
                 </div>
-                {% endfor %}
+
+                <div class="tab-pane fade" id="evening" role="tabpanel">
+                    <div class="accordion" id="reportAccordionEvening">
+                        {% for key, group in report.items %}
+                        <div class="accordion-item mb-3 border-{{ group.class }} shadow-sm">
+                            <h2 class="accordion-header" id="headingEvening{{ key }}">
+                                <button class="accordion-button {% if not forloop.first %}collapsed{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#collapseEvening{{ key }}">
+                                    <div class="d-flex w-100 justify-content-between align-items-center me-3 flex-wrap">
+                                        <span class="fw-bold text-{{ group.class }} me-2">{{ group.name }}</span>
+                                        <div style="font-size: 0.85rem" class="d-flex gap-1 flex-wrap">
+                                            <span class="badge bg-secondary">Списък: {{ group.total }}</span>
+                                            <span class="badge bg-dark shadow-sm">Налице: {{ group.present_evening }}</span>
+                                            {% if group.duty %}<span class="badge bg-secondary border border-light">Наряд: {{ group.duty|length }}</span>{% endif %}
+                                            {% if group.sick %}<span class="badge bg-danger">Болни: {{ group.sick|length }}</span>{% endif %}
+                                            {% if group.home %}<span class="badge bg-warning text-dark">ДО: {{ group.home|length }}</span>{% endif %}
+                                            {% if group.city %}<span class="badge bg-info text-dark">ГО: {{ group.city|length }}</span>{% endif %}
+                                            {% if group.mission %}<span class="badge bg-primary">Ком: {{ group.mission|length }}</span>{% endif %}
+                                        </div>
+                                    </div>
+                                </button>
+                            </h2>
+                            <div id="collapseEvening{{ key }}" class="accordion-collapse collapse {% if forloop.first %}show{% endif %}" data-bs-parent="#reportAccordionEvening">
+                                <div class="accordion-body">
+                                    <table class="table table-bordered table-sm text-center mb-4">
+                                        <thead class="table-light"><tr><th>По списък</th><th class="text-dark">Вечер (Налице)</th><th class="table-active">Наряд</th><th class="text-danger">Болни</th><th class="text-warning">ДО</th><th class="text-info">ГО</th><th class="text-primary">Ком.</th><th>Други</th></tr></thead>
+                                        <tbody class="fw-bold fs-5">
+                                            <tr><td>{{ group.total }}</td><td class="text-dark bg-dark bg-opacity-10">{{ group.present_evening }}</td><td>{{ group.duty|length }}</td><td class="text-danger">{{ group.sick|length }}</td><td class="text-warning">{{ group.home|length }}</td><td class="text-info">{{ group.city|length }}</td><td class="text-primary">{{ group.mission|length }}</td><td>{{ group.other|length }}</td></tr>
+                                        </tbody>
+                                    </table>
+                                    <div class="row g-3">
+                                        {% if group.duty %}<div class="col-md-6"><div class="card h-100 border-secondary shadow-sm"><div class="card-header bg-secondary text-white py-1 fw-bold">💂 В Наряд ({{ group.duty|length }})</div><ul class="list-group list-group-flush small">{% for s in group.duty %}<li class="list-group-item d-flex justify-content-between align-items-center"><span>{{ s.soldier.rank_title }} <strong>{{ s.soldier.last_name }}</strong></span><span class="badge bg-secondary">{{ s.duty_type.short_name|default:s.duty_type.name }}</span></li>{% endfor %}</ul></div></div>{% endif %}
+                                        {% if group.sick %}<div class="col-md-6"><div class="card h-100 border-danger shadow-sm"><div class="card-header bg-danger text-white py-1 fw-bold">🤒 Болни / Лазарет ({{ group.sick|length }})</div><ul class="list-group list-group-flush small">{% for l in group.sick %}<li class="list-group-item d-flex justify-content-between align-items-center"><strong>{{ l.soldier.last_name }}</strong><span class="text-muted small">{{ l.reason|default:"Заболяване" }}</span></li>{% endfor %}</ul></div></div>{% endif %}
+                                        
+                                        {% if group.city %}<div class="col-md-6"><div class="card h-100 border-info shadow-sm"><div class="card-header bg-info text-dark py-1 fw-bold">🏙️ Градска Отпуска ({{ group.city|length }})</div><ul class="list-group list-group-flush small">{% for l in group.city %}<li class="list-group-item d-flex justify-content-between align-items-center"><strong>{{ l.soldier.last_name }}</strong><div class="text-end"><span class="text-muted small d-block" style="font-size: 0.75rem;">до {{ l.end_date|date:"d.m H:i" }}</span></div></li>{% endfor %}</ul></div></div>{% endif %}
+                                        
+                                        {% if group.home %}<div class="col-md-6"><div class="card h-100 border-warning shadow-sm"><div class="card-header bg-warning text-dark py-1 fw-bold">🏠 Домашен Отпуск ({{ group.home|length }})</div><ul class="list-group list-group-flush small">{% for l in group.home %}<li class="list-group-item d-flex justify-content-between align-items-center"><strong>{{ l.soldier.last_name }}</strong><div class="text-end"><span class="text-muted small d-block" style="font-size: 0.75rem;">до {{ l.end_date|date:"d.m" }}</span></div></li>{% endfor %}</ul></div></div>{% endif %}
+                                        {% if group.mission %}<div class="col-md-6"><div class="card h-100 border-primary shadow-sm"><div class="card-header bg-primary text-white py-1 fw-bold">✈️ Командировка ({{ group.mission|length }})</div><ul class="list-group list-group-flush small">{% for l in group.mission %}<li class="list-group-item d-flex justify-content-between align-items-center"><strong>{{ l.soldier.last_name }}</strong><span class="text-muted small">{{ l.reason|default:"По служба" }}</span></li>{% endfor %}</ul></div></div>{% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
             </div>
         </div>
     </div>

@@ -100,11 +100,11 @@ def roster_view(request):
     
     all_soldiers = Soldier.objects.filter(is_active=True).order_by('rank_group__priority', 'last_name')
 
-    # ... (кодът за report речника си остава същият) ...
+    # 1. ДОБАВЯМЕ СУТРИН, ВЕЧЕР И ГО ('city')
     report = {
-        '1': {'name': '1-ва Рота (ВМС)', 'class': 'primary', 'total': 0, 'present': 0, 'duty': [], 'sick': [], 'home': [], 'mission': [], 'other': []},
-        '2': {'name': '2-ра Рота (Медици)', 'class': 'danger', 'total': 0, 'present': 0, 'duty': [], 'sick': [], 'home': [], 'mission': [], 'other': []},
-        'young': {'name': 'Млади Курсанти', 'class': 'success', 'total': 0, 'present': 0, 'duty': [], 'sick': [], 'home': [], 'mission': [], 'other': []}
+        '1': {'name': '1-ва Рота (ВМС)', 'class': 'primary', 'total': 0, 'present_morning': 0, 'present_evening': 0, 'duty': [], 'sick': [], 'home': [], 'city': [], 'mission': [], 'other': []},
+        '2': {'name': '2-ра Рота (Медици)', 'class': 'danger', 'total': 0, 'present_morning': 0, 'present_evening': 0, 'duty': [], 'sick': [], 'home': [], 'city': [], 'mission': [], 'other': []},
+        'young': {'name': 'Млади Курсанти', 'class': 'success', 'total': 0, 'present_morning': 0, 'present_evening': 0, 'duty': [], 'sick': [], 'home': [], 'city': [], 'mission': [], 'other': []}
     }
 
     shift_map = {s.soldier_id: s for s in shifts}
@@ -118,18 +118,37 @@ def roster_view(request):
 
         report[group_key]['total'] += 1
         
+        # По дефолт приемаме, че човекът е в строя
+        is_present_morning = True
+        is_present_evening = True
+        
         if s.id in leave_map:
             l = leave_map[s.id]
-            if l.leave_type == 'sick': report[group_key]['sick'].append(l)
-            elif l.leave_type in ['home', 'city']: report[group_key]['home'].append(l)
-            elif l.leave_type == 'mission': report[group_key]['mission'].append(l)
-            else: report[group_key]['other'].append(l)
+            if l.leave_type == 'sick': 
+                report[group_key]['sick'].append(l)
+                is_present_morning = False; is_present_evening = False
+            elif l.leave_type == 'home': 
+                report[group_key]['home'].append(l)
+                is_present_morning = False; is_present_evening = False
+            elif l.leave_type == 'city': 
+                report[group_key]['city'].append(l)
+                # МАГИЯТА: Налице е сутрин, но вечерта отсъства!
+                is_present_evening = False 
+            elif l.leave_type == 'mission': 
+                report[group_key]['mission'].append(l)
+                is_present_morning = False; is_present_evening = False
+            else: 
+                report[group_key]['other'].append(l)
+                is_present_morning = False; is_present_evening = False
         
-        elif s.id in shift_map:
+        if s.id in shift_map:
             sh = shift_map[s.id]
             report[group_key]['duty'].append(sh)
-        else:
-            report[group_key]['present'] += 1
+            # Нарядът също не е в строя
+            is_present_morning = False; is_present_evening = False
+            
+        if is_present_morning: report[group_key]['present_morning'] += 1
+        if is_present_evening: report[group_key]['present_evening'] += 1
 
     context = {
         'selected_date': selected_date,
