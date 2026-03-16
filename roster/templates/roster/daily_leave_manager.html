@@ -27,20 +27,30 @@
             </div>
 
             <div class="card shadow-sm border-success mb-4">
-                <div class="card-header bg-success text-white fw-bold">🎖️ Добавяне по Заслуги</div>
+                <div class="card-header bg-success text-white fw-bold">🎖️ Работни групи / Заслуги</div>
                 <div class="card-body">
-                    <p class="small text-muted mb-2">Избери курсант, който няма автоматична отпуска.</p>
                     <form method="post">
                         {% csrf_token %}
                         <input type="hidden" name="date" value="{{ target_date|date:'Y-m-d' }}">
                         <input type="hidden" name="action" value="add_manual">
-                        <select name="soldier_id" class="form-select mb-3">
-                            <option value="">-- Избери курсант --</option>
+                        
+                        <p class="small text-muted mb-1">Задръж <strong>CTRL</strong> за много хора:</p>
+                        <select name="soldier_ids" class="form-select form-select-sm mb-2" multiple size="7" required>
                             {% for s in available_soldiers %}
-                                <option value="{{ s.id }}">{{ s.company }} р. | {{ s.rank_title }} {{ s.last_name }} ({{ s.rank_group.name }})</option>
+                                <option value="{{ s.id }}">{{ s.company }} р. | {{ s.rank_title }} {{ s.last_name }} ({{ s.rank_group.name|slice:":5" }})</option>
                             {% endfor %}
                         </select>
-                        <button class="btn btn-outline-success w-100 fw-bold">+ Добави ръчно</button>
+                        
+                        <div class="mb-3">
+                            <label class="small text-muted fw-bold">Час на прибиране:</label>
+                            <select name="custom_return" class="form-select form-select-sm border-success fw-bold text-success">
+                                <option value="21:00">Днес в 21:00 (Стандартно)</option>
+                                <option value="05:40">Утре в 05:40 (Стипендия)</option>
+                                <option value="06:30">Утре в 06:30 (5-ти курс)</option>
+                            </select>
+                        </div>
+                        
+                        <button class="btn btn-outline-success w-100 fw-bold">+ ДОБАВИ ИЗБРАНИТЕ</button>
                     </form>
                 </div>
             </div>
@@ -97,7 +107,12 @@
                                 <td><span class="badge bg-secondary">{{ l.soldier.company }} р.</span></td>
                                 <td>
                                     <strong class="text-primary">{{ l.end_date|date:"H:i" }}</strong>
-                                    <span class="small text-muted">({{ l.end_date|date:"d.m.Y" }})</span>
+                                    <span class="small text-muted">({{ l.end_date|date:"d.m" }})</span>
+                                    
+                                    <button type="button" class="btn btn-sm btn-link text-secondary p-0 ms-1" 
+                                            onclick="openEditTimeModal('{{ l.id }}', '{{ l.end_date|date:'Y-m-d\TH:i' }}', '{{ l.soldier.last_name }}')">
+                                        <i class="bi bi-pencil-square"></i>
+                                    </button>
                                 </td>
                                 <td>
                                     {% if l.status == 'draft' %}
@@ -139,6 +154,13 @@
 
 {% block extra_js %}
 <script>
+    window.openEditTimeModal = function(leaveId, currentDatetime, soldierName) {
+        document.getElementById('editTimeLeaveId').value = leaveId;
+        document.getElementById('editTimeDatetime').value = currentDatetime;
+        document.getElementById('editTimeName').innerText = soldierName;
+        new bootstrap.Modal(document.getElementById('editTimeModal')).show();
+    };
+
     document.addEventListener("DOMContentLoaded", function() {
         var soldierModalEl = document.getElementById('soldierModal');
         if (!soldierModalEl) return;
@@ -199,4 +221,28 @@
         }
     });
 </script>
+<div class="modal fade" id="editTimeModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content border-primary shadow-lg">
+            <div class="modal-header bg-dark text-white py-2">
+                <h6 class="modal-title mb-0 fw-bold">Промяна на час: <span id="editTimeName" class="text-warning"></span></h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post">
+                {% csrf_token %}
+                <div class="modal-body bg-light">
+                    <input type="hidden" name="date" value="{{ target_date|date:'Y-m-d' }}">
+                    <input type="hidden" name="action" value="edit_time">
+                    <input type="hidden" name="leave_id" id="editTimeLeaveId">
+                    
+                    <label class="form-label small text-muted fw-bold">Нов час за прибиране:</label>
+                    <input type="datetime-local" name="new_datetime" id="editTimeDatetime" class="form-control fw-bold border-primary" required>
+                </div>
+                <div class="modal-footer p-1 bg-light">
+                    <button type="submit" class="btn btn-primary btn-sm w-100 fw-bold">💾 ЗАПАЗИ ЧАСА</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 {% endblock %}

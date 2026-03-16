@@ -1398,19 +1398,39 @@ def daily_leave_manager(request):
             
             messages.success(request, f"✅ Успешно генерирана чернова с {created_count} отпуски по устав!")
 
-        # --- 2. РЪЧНО ДОБАВЯНЕ (ПО ЗАСЛУГИ) ---
+# --- 2. РЪЧНО ДОБАВЯНЕ (ПО ЗАСЛУГИ / РАБОТНА ГРУПА) ---
         elif action == 'add_manual':
-            soldier_id = request.POST.get('soldier_id')
-            if soldier_id:
-                s = Soldier.objects.get(id=soldier_id)
-                # По заслуги излизат от 17:30 до 21:00 същия ден
+            soldier_ids = request.POST.getlist('soldier_ids') # ВЕЧЕ ВЗИМАМЕ СПИСЪК С ХОРА
+            custom_return = request.POST.get('custom_return', '21:00')
+            
+            for sid in soldier_ids:
+                s = Soldier.objects.get(id=sid)
+                
+                # Определяме часа спрямо избора на Капитана
+                return_date = target_date
+                if custom_return == '05:40':
+                    return_date = next_day
+                    return_time = datetime.time(5, 40)
+                elif custom_return == '06:30':
+                    return_date = next_day
+                    return_time = datetime.time(6, 30)
+                else:
+                    return_time = datetime.time(21, 0)
+                
+                # ЖЕЛЯЗНО: Ако утре е наряд, задължително го връщаме в 21:00!
                 has_duty_next = DutyShift.objects.filter(soldier=s, date=next_day).exists()
-                
+                if has_duty_next and custom_return in ['05:40', '06:30']:
+                    return_date = target_date
+                    return_time = datetime.time(21, 0)
+                    messages.warning(request, f"⚠️ {s.last_name} е наряд утре! Часът му автоматично бе върнат на 21:00.")
+
                 start_dt = datetime.datetime.combine(target_date, datetime.time(17, 30))
-                end_dt = datetime.datetime.combine(target_date, datetime.time(21, 0))
+                end_dt = datetime.datetime.combine(return_date, return_time)
                 
-                Leave.objects.create(soldier=s, start_date=start_dt, end_date=end_dt, leave_type='city', reason="По заслуги/Заповед", status='draft')
-                messages.success(request, f"🎖️ {s.last_name} беше добавен по заслуги!")
+                Leave.objects.create(soldier=s, start_date=start_dt, end_date=end_dt, leave_type='city', reason="Група/Заслуги", status='draft')
+            
+            if soldier_ids:
+                messages.success(request, f"🎖️ Успешно добавени {len(soldier_ids)} души в списъка!")
 
         # --- 3. УТВЪРЖДАВАНЕ ---
         elif action == 'publish':
@@ -1425,6 +1445,18 @@ def daily_leave_manager(request):
                 soldier_name = leave_to_delete.soldier.last_name
                 leave_to_delete.delete()
                 messages.success(request, f"🗑️ {soldier_name} беше премахнат от списъка за днес.")
+                
+# --- 5. ПРОМЯНА НА ЧАСА С МОЛИВЧЕТО (НОВО) ---
+        elif action == 'edit_time':
+            leave_id = request.POST.get('leave_id')
+            new_datetime = request.POST.get('new_datetime')
+            if leave_id and new_datetime:
+                try:
+                    dt = datetime.datetime.strptime(new_datetime, '%Y-%m-%dT%H:%M')
+                    Leave.objects.filter(id=leave_id).update(end_date=dt)
+                    messages.success(request, "⏱️ Часът за прибиране е обновен успешно!")
+                except ValueError:
+                    messages.error(request, "❌ Невалиден формат на датата/часа.")
 
         return redirect(f"/roster/leaves/daily/?date={target_date.strftime('%Y-%m-%d')}")
     
