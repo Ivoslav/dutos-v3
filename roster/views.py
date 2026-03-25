@@ -287,38 +287,38 @@ def statistics_view(request):
 def soldier_profile(request, soldier_id):
     soldier = get_object_or_404(Soldier, id=soldier_id)
     today = datetime.date.today()
-
-    upcoming_shifts = DutyShift.objects.filter(soldier=soldier, date__gte=today).order_by('date')
-    past_shifts = DutyShift.objects.filter(soldier=soldier, date__lt=today).order_by('-date')
-    leaves = Leave.objects.filter(soldier=soldier).order_by('-start_date')
-
+    upcoming_shifts = DutyShift.objects.filter(soldier=soldier, date__gte=today).order_by('date')[:5]
+    past_shifts = DutyShift.objects.filter(soldier=soldier, date__lt=today).order_by('-date')[:5]
+    leaves = Leave.objects.filter(soldier=soldier).order_by('-start_date')[:5]
+    active_stars = soldier.disciplinary_records.filter(record_type='star', is_active=True).count()
+    active_dots = soldier.disciplinary_records.filter(record_type='dot', is_active=True).count()
+    records = soldier.disciplinary_records.all()[:10]
     form = DutyShiftForm(request.POST or None)
 
     if request.method == 'POST':
         action = request.POST.get('action', 'assign_duty')
         
-        # --- 1. АКО КАПИТАНЪТ НАТИСНЕ "ЛИШАВАНЕ ОТ ОТПУСКА" ---
-        if action == 'revoke_leave':
-            start_date = request.POST.get('start_date')
-            end_date = request.POST.get('end_date')
+        # 1. ДОБАВЯНЕ НА ЗАПИС В ДОСИЕТО (Звездичка или Черна точка)
+        if action == 'add_record':
+            record_type = request.POST.get('record_type')
             reason = request.POST.get('reason')
-            
-            if start_date and end_date and reason:
-                Leave.objects.create(
-                    soldier=soldier,
-                    start_date=start_date,
-                    end_date=end_date,
-                    leave_type='revoked',
-                    reason=reason,
-                    status='official'
-                )
-                messages.error(request, f"🚫 {soldier.last_name} е лишен от отпуска!")
-            else:
-                messages.warning(request, "⛔ Попълнете всички полета за наказанието.")
-                
+            if record_type and reason:
+                from .models import DisciplinaryRecord
+                DisciplinaryRecord.objects.create(soldier=soldier, record_type=record_type, reason=reason)
+                messages.success(request, f"{'⭐ Звездичката' if record_type == 'star' else '⚫ Черната точка'} е добавена успешно!")
             return redirect(request.META.get('HTTP_REFERER', 'roster_stats'))
-            
-        # --- 2. АКО КАПИТАНЪТ НАЗНАЧАВА НАРЯД ---
+
+        # 2. ИЗЧИСТВАНЕ/ВРЪЩАНЕ НА ЗАПИС
+        elif action == 'toggle_record':
+            record_id = request.POST.get('record_id')
+            from .models import DisciplinaryRecord
+            rec = get_object_or_404(DisciplinaryRecord, id=record_id)
+            rec.is_active = not rec.is_active
+            rec.save()
+            messages.info(request, "🔄 Статусът на записа е променен.")
+            return redirect(request.META.get('HTTP_REFERER', 'roster_stats'))
+
+        # 3. НАЗНАЧАВАНЕ НА НАРЯД (Старото)
         elif action == 'assign_duty':
             if not soldier.is_active:
                  messages.error(request, "⛔ ГРЕШКА: Този военнослужещ е неактивен!")
@@ -330,7 +330,7 @@ def soldier_profile(request, soldier_id):
                 
                 on_leave = Leave.objects.filter(soldier=soldier, start_date__date__lte=new_date, end_date__date__gte=new_date).exists()
                 has_shift_today = DutyShift.objects.filter(soldier=soldier, date=new_date).exists()
-                has_shift_yesterday = DutyShift.objects.filter(soldier=soldier, date=new_date - timedelta(days=1)).exists()
+                has_shift_yesterday = DutyShift.objects.filter(soldier=soldier, date=new_date - datetime.timedelta(days=1)).exists()
                 is_rank_allowed = duty_type.allowed_ranks.filter(id=soldier.rank_group.id).exists()
 
                 if on_leave: form.add_error('date', '⛔ Грешка: Войникът е в отпуск/наказан на тази дата!')
@@ -351,6 +351,9 @@ def soldier_profile(request, soldier_id):
         'upcoming_shifts': upcoming_shifts,
         'past_shifts': past_shifts,
         'leaves': leaves,
+        'records': records,
+        'active_stars': active_stars,
+        'active_dots': active_dots,
         'form': form,
     }
     return render(request, 'roster/modal_profile.html', context)
@@ -1486,7 +1489,11 @@ def daily_leave_manager(request):
                 end_dt = datetime.datetime.combine(return_date, return_time)
                 
                 Leave.objects.create(soldier=s, start_date=start_dt, end_date=end_dt, leave_type='city', reason="Група/Заслуги", status='draft')
-            
+                active_star = s.disciplinary_records.filter(record_type='star', is_active=True).first()
+                if active_star:
+                    active_star.is_active = False
+                    active_star.reason += " (⭐ Използвана за отпуска)"
+                    active_star.save()            
             if soldier_ids:
                 messages.success(request, f"🎖️ Успешно добавени {len(soldier_ids)} души в списъка!")
 
@@ -1529,8 +1536,9 @@ def daily_leave_manager(request):
     
     # За падащото меню изключваме хората, които вече имат генерирана отпуска днес
     busy_ids = leaves.values_list('soldier_id', flat=True)
-    available_soldiers = Soldier.objects.filter(is_active=True).exclude(id__in=busy_ids).order_by('company', 'last_name')
-
+    available_soldiers = Soldier.objects.filter(is_active=True).exclude(id__in=busy_ids).annotate(
+        stars_count=Count('disciplinary_records', filter=Q(disciplinary_records__record_type='star', disciplinary_records__is_active=True))
+    ).order_by('-stars_count', 'company', 'last_name')
     context = {
         'target_date': target_date,
         'leaves': leaves,

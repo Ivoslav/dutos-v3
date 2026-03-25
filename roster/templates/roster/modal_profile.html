@@ -1,135 +1,143 @@
-<div class="modal-header bg-light">
-    <h5 class="modal-title" id="soldierModalLabel">
-        👤 Досие: {{ soldier.rank_title }} {{ soldier.last_name }}
+<div class="modal-header bg-dark text-white">
+    <h5 class="modal-title fw-bold">
+        <i class="bi bi-person-lines-fill me-2"></i> {{ soldier.rank_title }} {{ soldier.smart_name }}
     </h5>
-    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
 </div>
-
-<div class="modal-body">
+<div class="modal-body p-0">
     
-    <div class="d-flex justify-content-between align-items-center mb-4 p-3 bg-white border rounded shadow-sm">
-        <div>
-            <div class="text-muted small">Факултетен № / Взвод</div>
-            <strong>{{ soldier.faculty_number }} | {{ soldier.platoon }} взвод</strong>
-            
-            {% if soldier.position != 'Редови' %}
-                <div class="mt-1"><span class="badge bg-info text-dark shadow-sm">⭐ {{ soldier.get_position_display }}</span></div>
-            {% endif %}
-            
-        </div>
-        <div class="text-end">
-            <div class="text-muted small">Натовареност</div>
-            <span class="badge bg-primary fs-5">{{ soldier.score }} точки</span>
-        </div>
-    </div>
-
-    <div class="card mb-4 border-primary shadow-sm">
-        <div class="card-header bg-primary text-white py-1">➕ Назначи наряд</div>
-        <div class="card-body bg-light">
-            <form method="post" action="{% url 'soldier_profile' soldier.id %}" class="row g-2 align-items-end">
-                {% csrf_token %}
-                <input type="hidden" name="action" value="assign_duty"> {% if form.date.errors %}
-                    <div class="col-12 text-danger fw-bold small mb-2">{{ form.date.errors.0 }}</div>
-                {% endif %}
-                {% if form.duty_type.errors %}
-                    <div class="col-12 text-danger fw-bold small mb-2">{{ form.duty_type.errors.0 }}</div>
-                {% endif %}
-
-                <div class="col-6">
-                    <label class="small text-muted fw-bold">Дата:</label>
-                    {{ form.date }} 
-                </div>
-                <div class="col-6">
-                    <label class="small text-muted fw-bold">Вид наряд:</label>
-                    {{ form.duty_type }}
-                </div>
-                <div class="col-12 mt-2">
-                    <button type="submit" class="btn btn-primary btn-sm w-100 fw-bold">Запиши Наряд</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <div class="card mb-4 border-danger shadow-sm">
-        <div class="card-header bg-danger text-white py-1 fw-bold">🚫 Наложи отказ от отпуска</div>
-        <div class="card-body bg-light">
-            <form method="post" action="{% url 'soldier_profile' soldier.id %}" class="row g-2 align-items-end">
-                {% csrf_token %}
-                <input type="hidden" name="action" value="revoke_leave"> <div class="col-6">
-                    <label class="small text-muted fw-bold">От (Дата/Час):</label>
-                    <input type="datetime-local" name="start_date" class="form-control form-control-sm" required>
-                </div>
-                <div class="col-6">
-                    <label class="small text-muted fw-bold">До (Дата/Час):</label>
-                    <input type="datetime-local" name="end_date" class="form-control form-control-sm" required>
-                </div>
-                <div class="col-12">
-                    <label class="small text-muted fw-bold">Причина за отказа:</label>
-                    <input type="text" name="reason" class="form-control form-control-sm" placeholder="Напр: Непочистен район / Нарушение" required>
-                </div>
-                <div class="col-12 mt-2">
-                    <button type="submit" class="btn btn-danger btn-sm w-100 fw-bold">Лиши от отпуска</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    {% if leaves %}
-    <h6 class="text-warning border-bottom border-warning pb-1 mt-3 fw-bold">⚠️ Отсъствия и Наказания</h6>
-    <ul class="list-group list-group-flush mb-4 small shadow-sm">
-        {% for leave in leaves %}
-            <li class="list-group-item d-flex justify-content-between align-items-center {% if leave.leave_type == 'revoked' %}bg-danger bg-opacity-10 border-danger{% else %}bg-warning bg-opacity-10{% endif %}">
-                <span>
-                    {% if leave.leave_type == 'sick' %}🤒 Болничен
-                    {% elif leave.leave_type == 'revoked' %}<span class="text-danger fw-bold">🚫 Отказ: {{ leave.reason }}</span>
-                    {% elif leave.leave_type == 'city' %}🏙️ Градска
-                    {% elif leave.leave_type == 'home' %}🏠 Домашен
-                    {% else %}✈️ {{ leave.get_leave_type_display }}{% endif %}
-                    
-                    <div class="text-muted fw-bold" style="font-size: 0.85em;">
-                        {{ leave.start_date|date:"d.m H:i" }} - {{ leave.end_date|date:"d.m H:i" }}
-                    </div>
-                </span>
-            </li>
-        {% endfor %} 
+    <ul class="nav nav-tabs nav-fill bg-light pt-2 px-2" id="profileTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active fw-bold text-dark" id="overview-tab" data-bs-toggle="tab" data-bs-target="#overview" type="button" role="tab">
+                <i class="bi bi-clipboard-data me-1"></i> Общ преглед
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link fw-bold text-danger" id="actions-tab" data-bs-toggle="tab" data-bs-target="#actions" type="button" role="tab">
+                <i class="bi bi-gear-fill me-1"></i> Управление
+            </button>
+        </li>
     </ul>
-    {% endif %}
 
-    <div class="row g-3">
-        <div class="col-md-6">
-            <h6 class="text-primary border-bottom border-primary pb-1 fw-bold">📅 Предстоящи</h6>
-            {% if upcoming_shifts %}
-                <ul class="list-group list-group-flush mb-3 small">
-                    {% for shift in upcoming_shifts %}
-                    <li class="list-group-item px-1 d-flex justify-content-between align-items-center">
-                        <strong>{{ shift.date|date:"d.m" }} <span class="text-muted fw-normal">({{ shift.date|date:"D"|slice:":2" }})</span></strong>
-                        <span class="badge bg-primary">{{ shift.duty_type.short_name|default:shift.duty_type.name }}</span>
+    <div class="tab-content p-3" id="profileTabsContent">
+        
+        <div class="tab-pane fade show active" id="overview" role="tabpanel">
+            
+            <div class="row text-center mb-3 g-2">
+                <div class="col-4">
+                    <div class="p-2 border rounded bg-primary bg-opacity-10 border-primary shadow-sm h-100">
+                        <h3 class="mb-0 text-primary">{{ soldier.score }}</h3>
+                        <small class="text-muted fw-bold text-uppercase" style="font-size: 0.65rem; letter-spacing: 0.5px;">Наряд Точки</small>
+                    </div>
+                </div>
+                <div class="col-4">
+                    <div class="p-2 border rounded bg-warning bg-opacity-10 border-warning shadow-sm h-100">
+                        <h3 class="mb-0 text-warning" style="text-shadow: 1px 1px 1px rgba(0,0,0,0.1);">⭐ {{ active_stars }}</h3>
+                        <small class="text-muted fw-bold text-uppercase" style="font-size: 0.65rem; letter-spacing: 0.5px;">Заслуги</small>
+                    </div>
+                </div>
+                <div class="col-4">
+                    <div class="p-2 border rounded bg-dark bg-opacity-10 border-dark shadow-sm h-100">
+                        <h3 class="mb-0 text-dark">⚫ {{ active_dots }}</h3>
+                        <small class="text-muted fw-bold text-uppercase" style="font-size: 0.65rem; letter-spacing: 0.5px;">Провинения</small>
+                    </div>
+                </div>
+            </div>
+
+            <h6 class="fw-bold border-bottom pb-1 text-muted text-uppercase small mt-3">📂 Дисциплинарно Досие:</h6>
+            {% if records %}
+                <ul class="list-group list-group-flush small mb-3" style="max-height: 140px; overflow-y: auto;">
+                {% for r in records %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center px-1 py-1 {% if not r.is_active %}text-decoration-line-through text-muted bg-light{% endif %}">
+                        <div>
+                            <span class="fs-6 me-1">{% if r.record_type == 'star' %}⭐{% else %}⚫{% endif %}</span>
+                            <strong>{{ r.date|date:"d.m.Y" }}</strong> - <span class="{% if not r.is_active %}text-muted{% endif %}">{{ r.reason }}</span>
+                        </div>
+                        <form method="POST" action="{% url 'soldier_profile' soldier.id %}" style="display:inline;">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="toggle_record">
+                            <input type="hidden" name="record_id" value="{{ r.id }}">
+                            <button type="submit" class="btn btn-sm text-decoration-none {% if r.is_active %}text-secondary{% else %}text-success{% endif %}" title="Промени статус" style="padding: 0; background: none; border: none;">
+                                <i class="bi {% if r.is_active %}bi-x-circle{% else %}bi-arrow-counterclockwise{% endif %} fs-5"></i>
+                            </button>
+                        </form>
                     </li>
-                    {% endfor %} 
+                {% endfor %}
                 </ul>
             {% else %}
-                <p class="text-muted small mb-3">Няма планирани.</p>
+                <p class="text-muted small px-1 mt-1 mb-3"><em>Досието е чисто.</em></p>
             {% endif %}
+
+            <h6 class="fw-bold border-bottom pb-1 text-muted text-uppercase small">💂 Предстоящи Наряди:</h6>
+            <ul class="list-group list-group-flush small mb-3">
+                {% for shift in upcoming_shifts %}
+                <li class="list-group-item d-flex justify-content-between align-items-center px-1 py-1">
+                    <span><strong>{{ shift.date|date:"d.m.Y" }}</strong> - {{ shift.duty_type.name }}</span>
+                    <span class="badge bg-secondary">{{ shift.get_status_display }}</span>
+                </li>
+                {% empty %}
+                <li class="list-group-item text-muted px-1 border-0 py-1"><em>Няма бъдещи наряди.</em></li>
+                {% endfor %}
+            </ul>
+
+            <h6 class="fw-bold border-bottom pb-1 text-muted text-uppercase small mt-2">🏖️ Последни Отпуски:</h6>
+            <ul class="list-group list-group-flush small" style="max-height: 120px; overflow-y: auto;">
+                {% for leave in leaves %}
+                <li class="list-group-item d-flex justify-content-between align-items-center px-1 py-1">
+                    <div>
+                        <strong>{{ leave.start_date|date:"d.m" }}</strong> - <strong>{{ leave.end_date|date:"d.m" }}</strong>
+                    </div>
+                    <span class="badge {% if leave.leave_type == 'revoked' %}bg-danger{% elif leave.leave_type == 'city' %}bg-info text-dark{% else %}bg-secondary{% endif %}">
+                        {{ leave.get_leave_type_display }}
+                    </span>
+                </li>
+                {% empty %}
+                <li class="list-group-item text-muted px-1 border-0 py-1"><em>Няма записани отпуски.</em></li>
+                {% endfor %}
+            </ul>
         </div>
-        <div class="col-md-6">
-            <h6 class="text-secondary border-bottom border-secondary pb-1 fw-bold">🕒 История (Последни 5)</h6>
-            {% if past_shifts %}
-                <ul class="list-group list-group-flush small text-muted">
-                    {% for shift in past_shifts|slice:":5" %}
-                    <li class="list-group-item px-1 d-flex justify-content-between bg-light align-items-center">
-                        <span>{{ shift.date|date:"d.m.Y" }}</span>
-                        <span>{{ shift.duty_type.short_name|default:shift.duty_type.name }}</span>
-                    </li>
-                    {% endfor %} 
-                </ul>
-            {% else %}
-                <p class="text-muted small">Няма история.</p>
-            {% endif %}
+
+        <div class="tab-pane fade" id="actions" role="tabpanel">
+            
+            <form method="POST" action="{% url 'soldier_profile' soldier.id %}" class="mb-4 p-3 border rounded bg-light shadow-sm">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="add_record">
+                <label class="form-label fw-bold small text-dark text-uppercase mb-2"><i class="bi bi-journal-text me-1"></i> Нанеси в досието</label>
+                <div class="input-group input-group-sm">
+                    <select name="record_type" class="form-select border-secondary" style="max-width: 130px;" required>
+                        <option value="star">⭐ Заслуга</option>
+                        <option value="dot">⚫ Нарушение</option>
+                    </select>
+                    <input type="text" name="reason" class="form-control border-secondary" placeholder="Причина..." required>
+                    <button type="submit" class="btn btn-dark fw-bold">Запиши</button>
+                </div>
+            </form>
+
+            <form method="POST" action="{% url 'soldier_profile' soldier.id %}" class="mb-4 p-3 border rounded bg-primary bg-opacity-10 border-primary shadow-sm">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="assign_duty">
+                <label class="form-label fw-bold small text-primary text-uppercase mb-2"><i class="bi bi-shield-plus me-1"></i> Извънреден Наряд</label>
+                <div class="row g-2">
+                    <div class="col-md-5">{{ form.date }}</div>
+                    <div class="col-md-5">{{ form.duty_type }}</div>
+                    <div class="col-md-2"><button type="submit" class="btn btn-sm btn-primary w-100 fw-bold h-100">Назначи</button></div>
+                </div>
+                {% if form.errors %}<div class="text-danger small mt-1 fw-bold">{{ form.errors }}</div>{% endif %}
+            </form>
+
+            <form method="POST" action="{% url 'soldier_profile' soldier.id %}" class="mb-2 p-3 border rounded border-danger bg-danger bg-opacity-10 shadow-sm">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="revoke_leave">
+                <label class="form-label fw-bold text-danger small text-uppercase mb-2"><i class="bi bi-exclamation-triangle-fill me-1"></i> Налагане на наказание</label>
+                <div class="row g-2">
+                    <div class="col-md-6"><label class="small text-muted fw-bold mb-1">От:</label><input type="datetime-local" name="start_date" class="form-control form-control-sm border-danger" required></div>
+                    <div class="col-md-6"><label class="small text-muted fw-bold mb-1">До:</label><input type="datetime-local" name="end_date" class="form-control form-control-sm border-danger" required></div>
+                    <div class="col-md-9 mt-2"><input type="text" name="reason" class="form-control form-control-sm border-danger" placeholder="Основание за спиране на отпуска" required></div>
+                    <div class="col-md-3 mt-2"><button type="submit" class="btn btn-sm btn-danger w-100 fw-bold">Накажи</button></div>
+                </div>
+            </form>
+
         </div>
+
     </div>
-
-</div>
-
-<div class="modal-footer bg-light p-2">
-    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Затвори</button>
 </div>

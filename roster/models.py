@@ -347,3 +347,23 @@ class ShiftSwapRequest(models.Model):
     class Meta:
         verbose_name = "Заявка за смяна (Борса)"
         verbose_name_plural = "Борса за смени"
+        
+class DisciplinaryRecord(models.Model):
+    RECORD_CHOICES = [
+        ('star', '⭐ Заслуга (Звездичка)'),
+        ('dot', '⚫ Провинение (Черна точка)'),
+    ]
+
+    soldier = models.ForeignKey(Soldier, on_delete=models.CASCADE, related_name='disciplinary_records', verbose_name="Военнослужещ")
+    record_type = models.CharField(max_length=10, choices=RECORD_CHOICES, verbose_name="Тип")
+    reason = models.CharField(max_length=255, verbose_name="Причина")
+    date = models.DateField(auto_now_add=True, verbose_name="Дата")
+    is_active = models.BooleanField(default=True, verbose_name="Активно")
+
+    def __str__(self):
+        return f"{self.get_record_type_display()} - {self.soldier.last_name}"
+
+    class Meta:
+        verbose_name = "Дисциплинарен запис"
+        verbose_name_plural = "Дисциплинарен дневник"
+        ordering = ['-date', '-id']

@@ -35,10 +35,13 @@
                         <input type="hidden" name="action" value="add_manual">
                         
                         <p class="small text-muted mb-1">Задръж <strong>CTRL</strong> за много хора:</p>
-                        <select name="soldier_ids" class="form-select form-select-sm mb-2" multiple size="7" required>
-                            {% for s in available_soldiers %}
-                                <option value="{{ s.id }}">{{ s.company }} р. | {{ s.rank_title }} {{ s.last_name }} ({{ s.rank_group.name|slice:":5" }})</option>
-                            {% endfor %}
+                        <select name="soldier_ids" class="form-select form-select-sm" multiple size="8" required>
+                                    {% for s in available_soldiers %}
+                                    <option value="{{ s.id }}" class="{% if s.stars_count %}fw-bold text-success bg-warning bg-opacity-10{% endif %}">
+                                        {% if s.stars_count %}⭐ ({{ s.stars_count }}) - {% endif %}
+                                        {{ s.last_name }} ({{ s.company }} рота) - {{ s.rank_title }}
+                                    </option>
+                                    {% endfor %}
                         </select>
                         
                         <div class="mb-3">
