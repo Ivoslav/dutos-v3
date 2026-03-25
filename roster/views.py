@@ -83,24 +83,54 @@ def roster_view(request):
     else:
         selected_date = datetime.date.today()
 
-    # ПОПРАВКА ТУК:
-    # 1. Добавихме 'soldier__rank_group' в select_related, за да дръпне данните веднага.
-    # 2. Сортираме по ID ('soldier__rank_group'), което е най-безопасно за regroup.
     shifts = DutyShift.objects.filter(date=selected_date).select_related(
         'soldier', 
         'duty_type', 
         'soldier__rank_group'
+    ).prefetch_related(
+        'duty_type__allowed_ranks'
     ).order_by(
-        '-soldier__rank_group__priority',  # 1. Приоритет
-        'soldier__rank_group__name',       # <--- ВАЖНО: Сортираме по ТЕКСТ (Име)
+        '-soldier__rank_group__priority',
+        'soldier__rank_group__name',
         '-duty_type__weight'
     )
 
-    leaves = list(Leave.objects.filter(start_date__lte=selected_date, end_date__gte=selected_date).select_related('soldier'))
-    
-    all_soldiers = Soldier.objects.filter(is_active=True).order_by('rank_group__priority', 'last_name')
+# ДОБАВЕНО __date, ЗА ДА ИГНОРИРА ЧАСОВЕТЕ ПРИ СРАВНЕНИЕТО!
+    leaves = list(Leave.objects.filter(
+        start_date__date__lte=selected_date, 
+        end_date__date__gte=selected_date
+    ).select_related('soldier')) 
+       
+    all_soldiers = Soldier.objects.filter(is_active=True).order_by('-rank_group__priority', 'last_name')
 
-    # 1. ДОБАВЯМЕ СУТРИН, ВЕЧЕР И ГО ('city')
+    # ---------------------------------------------------------
+    # НОВО: БРУТАЛНО ФИЛТРИРАНЕ ЗА МОДАЛА (UX Подобрение)
+    # ---------------------------------------------------------
+    yesterday = selected_date - datetime.timedelta(days=1)
+    tomorrow = selected_date + datetime.timedelta(days=1)
+
+    # 1. Намираме ID-тата на хората, които са наряд вчера, днес или утре
+    busy_shift_ids = DutyShift.objects.filter(
+        date__in=[yesterday, selected_date, tomorrow]
+    ).values_list('soldier_id', flat=True)
+
+    # 2. Намираме ID-тата на хората, които са в отпуск/болничен точно на тази дата
+    on_leave_ids = Leave.objects.filter(
+        start_date__lte=selected_date, 
+        end_date__gte=selected_date
+    ).values_list('soldier_id', flat=True)
+
+    # 3. Обединяваме всички забранени в едно множество (set), за да няма дубликати
+    forbidden_ids = set(list(busy_shift_ids) + list(on_leave_ids))
+
+    # 4. Създаваме списъка за модала, КАТО ИЗКЛЮЧВАМЕ забранените!
+    swap_candidates = Soldier.objects.filter(
+        is_active=True
+    ).exclude(
+        id__in=forbidden_ids
+    ).select_related('rank_group').order_by('score', 'last_name')
+    # ---------------------------------------------------------
+    
     report = {
         '1': {'name': '1-ва Рота (ВМС)', 'class': 'primary', 'total': 0, 'present_morning': 0, 'present_evening': 0, 'duty': [], 'sick': [], 'home': [], 'city': [], 'mission': [], 'other': []},
         '2': {'name': '2-ра Рота (Медици)', 'class': 'danger', 'total': 0, 'present_morning': 0, 'present_evening': 0, 'duty': [], 'sick': [], 'home': [], 'city': [], 'mission': [], 'other': []},
@@ -155,13 +185,12 @@ def roster_view(request):
         'shifts': shifts,
         'report': report,
         'total_on_duty': shifts.count(),
-        'all_soldiers': all_soldiers
+        'all_soldiers': all_soldiers,
+        'swap_candidates': swap_candidates
     }
     return render(request, 'roster/daily_roster.html', context)
 
 def statistics_view(request):
-    # --- МАГИЯ ЗА СОРТИРАНЕ НА ДЛЪЖНОСТИ ---
-    # Придаваме числова тежест на длъжностите (1 е най-важно, 99 са редовите)
     position_order = Case(
         When(position='ДК', then=Value(1)),
         When(position='ЗДК', then=Value(2)),
@@ -419,14 +448,18 @@ def emergency_swap(request, shift_id):
             messages.error(request, f"⛔ ГРЕШКА: {new_soldier.last_name} е в отпуск/болничен на тази дата!")
             return redirect(f"/roster/daily/?date={shift.date}")
 
-        # Проверка за заетост
+        # Проверка за заетост (ДНЕС) и 24-часова почивка (ВЧЕРА и УТРЕ)
         has_shift = DutyShift.objects.filter(
             soldier=new_soldier,
-            date=shift.date
+            date__in=[
+                shift.date, 
+                shift.date - datetime.timedelta(days=1), 
+                shift.date + datetime.timedelta(days=1)
+            ]
         ).exists()
         
         if has_shift:
-            messages.error(request, f"⛔ ГРЕШКА: {new_soldier.last_name} вече има друг наряд на тази дата!")
+            messages.error(request, f"⛔ ГРЕШКА: {new_soldier.last_name} има наряд днес, вчера или утре (нарушава 24ч почивка)!")
             return redirect(f"/roster/daily/?date={shift.date}")
 
         # Смяна на точките
@@ -1170,9 +1203,16 @@ def api_market_take(request):
     if swap.requester == soldier:
         return Response({"detail": "Не можеш да вземеш собствения си наряд."}, status=400)
 
-    # Проверяваме дали кандидатът вече няма наряд на тази дата
-    if DutyShift.objects.filter(soldier=soldier, date=swap.shift.date).exists():
-        return Response({"detail": "Вече имаш друг наряд на тази дата!"}, status=400)
+    # Проверяваме дали кандидатът нарушава 24-часовата почивка (Вчера, Днес или Утре)
+    if DutyShift.objects.filter(
+        soldier=soldier, 
+        date__in=[
+            swap.shift.date, 
+            swap.shift.date - datetime.timedelta(days=1), 
+            swap.shift.date + datetime.timedelta(days=1)
+        ]
+    ).exists():
+        return Response({"detail": "Нарушаваш 24-часовата почивка! Вече си наряд вчера, днес или утре."}, status=400)
 
     # Променяме статуса и записваме кандидата
     swap.substitute = soldier
@@ -1337,7 +1377,6 @@ def generate_weekend_leaves(request):
 # ==========================================
 @user_passes_test(lambda u: u.is_superuser)
 def daily_leave_manager(request):
-    import datetime
     
     date_str = request.GET.get('date') or request.POST.get('date')
     if date_str:

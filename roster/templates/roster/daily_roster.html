@@ -110,7 +110,7 @@
                                         </td>                                        
                                         <td class="text-end">
                                             <button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#swapModal"
-                                                    onclick="setupSwap('{{ shift.id }}', '{{ shift.soldier.last_name }}', '{{ shift.duty_type.name }}')">
+                                                    onclick="setupSwap('{{ shift.id }}', '{{ shift.soldier.last_name }}', '{{ shift.duty_type.name }}', '{% for r in shift.duty_type.allowed_ranks.all %}{{ r.id }},{% endfor %}')">
                                                 🔄 Смяна
                                             </button>
                                         </td>
@@ -243,10 +243,12 @@
                     <p>Наряд: <strong id="swapTargetDuty">...</strong></p>
                     <hr />
                     <div class="mb-3">
-                        <label class="form-label">Избери заместник:</label>
-                        <select name="new_soldier" class="form-select" required size="5">
-                            {% for s in all_soldiers %}
-                            <option value="{{ s.id }}">{{ s.last_name }} ({{ s.rank_title }}) - {{ s.faculty_number }} [{{ s.score }} т.]</option>
+                        <label class="form-label fw-bold">Избери заместник (От малко към много точки):</label>
+                        <select name="new_soldier" id="swapSoldierSelect" class="form-select" required size="5">
+                            {% for s in swap_candidates %}
+                            <option value="{{ s.id }}" class="substitute-option" data-course-id="{{ s.rank_group.id }}">
+                                {{ s.last_name }} ({{ s.rank_title }}) - {{ s.faculty_number }} [{{ s.score }} т.]
+                            </option>
                             {% endfor %}
                         </select>
                     </div>
@@ -306,12 +308,32 @@
         }
 
         // Функция за модала за смяна
-        window.setupSwap = function(shiftId, soldierName, dutyName) {
+        window.setupSwap = function(shiftId, soldierName, dutyName, allowedRanksStr) {
             var form = document.getElementById('swapForm');
             if(form) {
                 form.action = "/roster/swap/" + shiftId + "/";
                 document.getElementById('swapTargetName').innerText = soldierName;
                 document.getElementById('swapTargetDuty').innerText = dutyName;
+                
+                // Взимаме ID-тата на разрешените курсове за този конкретен наряд
+                var allowedIds = allowedRanksStr.split(',').filter(Boolean);
+                var options = document.querySelectorAll('.substitute-option');
+                
+                // Завъртаме през всички хора в списъка
+                options.forEach(function(opt) {
+                    if (allowedIds.includes(opt.getAttribute('data-course-id'))) {
+                        // Ако курсът съвпада -> Показваме го
+                        opt.disabled = false;
+                        opt.hidden = false;
+                    } else {
+                        // Ако курсът НЕ съвпада -> Скриваме го
+                        opt.disabled = true;
+                        opt.hidden = true;
+                    }
+                });
+                
+                // Ресетваме селекцията, за да не стои избран някой скрит човек
+                document.getElementById('swapSoldierSelect').value = "";
             }
         };
     });

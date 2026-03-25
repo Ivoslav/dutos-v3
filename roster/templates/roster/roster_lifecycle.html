@@ -20,51 +20,126 @@
         </form>
     </div>
 
-    <div class="position-relative my-5 mx-2">
-        <div class="progress position-absolute top-50 start-50 translate-middle shadow-sm" style="width: 90%; height: 6px; z-index: 0; background-color: #343a40;">
-            <div class="progress-bar bg-primary" role="progressbar" 
-                 style="width: {% if phase == 1 %}0%{% elif phase == 2 %}33.3%{% elif phase == 3 %}66.6%{% else %}100%{% endif %}; transition: width 0.8s ease-in-out;">
+    <style>
+        .stepper-wrapper {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin: 2.5rem 1rem 3.5rem 1rem;
+        }
+
+        .stepper-item {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex: 1;
+            z-index: 1;
+        }
+
+        /* Линиите, които свързват стъпките */
+        .stepper-item::before,
+        .stepper-item::after {
+            content: "";
+            position: absolute;
+            top: 24px; /* Точно половината на 48px кръгче */
+            width: 50%;
+            height: 4px;
+            background-color: #e9ecef;
+            z-index: -1;
+            transition: background-color 0.4s ease;
+        }
+
+        .stepper-item::before { left: 0; }
+        .stepper-item::after { right: 0; }
+
+        /* Премахваме стърчащите линии в двата края */
+        .stepper-item:first-child::before { display: none; }
+        .stepper-item:last-child::after { display: none; }
+
+        /* Оцветяване на линиите за миналите стъпки (Зелено) */
+        .stepper-item.completed::after,
+        .stepper-item + .stepper-item.completed::before,
+        .stepper-item.active::before {
+            background-color: #198754; 
+        }
+
+        /* Самите кръгчета */
+        .step-counter {
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: #fff;
+            color: #adb5bd;
+            font-weight: 800;
+            font-size: 1.2rem;
+            border: 3px solid #e9ecef;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 0 5px #f8f9fa; /* Симулира отстояние от линията */
+        }
+
+        /* Активна стъпка (Синьо светещо) */
+        .stepper-item.active .step-counter {
+            border-color: #0d6efd;
+            background-color: #0d6efd;
+            color: #fff;
+            box-shadow: 0 0 0 6px rgba(13, 110, 253, 0.15);
+        }
+
+        /* Завършена стъпка (Зелено) */
+        .stepper-item.completed .step-counter {
+            border-color: #198754;
+            background-color: #198754;
+            color: #fff;
+        }
+
+        /* Текстовете отдолу */
+        .step-name {
+            margin-top: 1rem;
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: #adb5bd;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            text-align: center;
+            transition: color 0.3s ease;
+        }
+
+        .stepper-item.active .step-name { color: #0d6efd; }
+        .stepper-item.completed .step-name { color: #198754; }
+    </style>
+
+    <div class="stepper-wrapper">
+        <div class="stepper-item {% if phase > 1 %}completed{% elif phase == 1 %}active{% endif %}">
+            <div class="step-counter">
+                {% if phase > 1 %}<i class="bi bi-check-lg fs-4"></i>{% else %}1{% endif %}
             </div>
+            <div class="step-name">Подготовка</div>
         </div>
         
-        <div class="d-flex justify-content-between position-relative" style="z-index: 1;">
-            
-            <div class="text-center" style="width: 120px;">
-                <div class="mx-auto mb-2 text-white d-flex align-items-center justify-content-center fw-bold fs-5 shadow-sm 
-                            {% if phase > 1 %}bg-success border-success{% elif phase == 1 %}bg-primary border-primary{% else %}bg-dark border-secondary{% endif %}" 
-                     style="width: 55px; height: 55px; border-radius: 50%; border: 4px solid; transition: 0.3s;">
-                    {% if phase > 1 %}<i class="bi bi-check-lg fs-3"></i>{% else %}1{% endif %}
-                </div>
-                <div class="fw-bold small text-uppercase {% if phase > 1 %}text-success{% elif phase == 1 %}text-primary{% else %}text-muted{% endif %}">Подготовка</div>
+        <div class="stepper-item {% if phase > 2 %}completed{% elif phase == 2 %}active{% endif %}">
+            <div class="step-counter">
+                {% if phase > 2 %}<i class="bi bi-check-lg fs-4"></i>{% else %}2{% endif %}
             </div>
-            
-            <div class="text-center" style="width: 120px;">
-                <div class="mx-auto mb-2 text-white d-flex align-items-center justify-content-center fw-bold fs-5 shadow-sm 
-                            {% if phase > 2 %}bg-success border-success{% elif phase == 2 %}bg-primary border-primary{% else %}bg-dark border-secondary{% endif %}" 
-                     style="width: 55px; height: 55px; border-radius: 50%; border: 4px solid; transition: 0.3s;">
-                    {% if phase > 2 %}<i class="bi bi-check-lg fs-3"></i>{% else %}2{% endif %}
-                </div>
-                <div class="fw-bold small text-uppercase {% if phase > 2 %}text-success{% elif phase == 2 %}text-primary{% else %}text-muted{% endif %}">Чернова</div>
-            </div>
+            <div class="step-name">Чернова</div>
+        </div>
 
-            <div class="text-center" style="width: 120px;">
-                <div class="mx-auto mb-2 text-white d-flex align-items-center justify-content-center fw-bold fs-5 shadow-sm 
-                            {% if phase > 3 %}bg-success border-success{% elif phase == 3 %}bg-primary border-primary{% else %}bg-dark border-secondary{% endif %}" 
-                     style="width: 55px; height: 55px; border-radius: 50%; border: 4px solid; transition: 0.3s;">
-                    {% if phase > 3 %}<i class="bi bi-check-lg fs-3"></i>{% else %}3{% endif %}
-                </div>
-                <div class="fw-bold small text-uppercase {% if phase > 3 %}text-success{% elif phase == 3 %}text-primary{% else %}text-muted{% endif %}">Борса / Смени</div>
+        <div class="stepper-item {% if phase > 3 %}completed{% elif phase == 3 %}active{% endif %}">
+            <div class="step-counter">
+                {% if phase > 3 %}<i class="bi bi-check-lg fs-4"></i>{% else %}3{% endif %}
             </div>
+            <div class="step-name">Борса / Смени</div>
+        </div>
 
-            <div class="text-center" style="width: 120px;">
-                <div class="mx-auto mb-2 text-white d-flex align-items-center justify-content-center fw-bold fs-5 shadow-sm 
-                            {% if phase == 4 %}bg-success border-success{% else %}bg-dark border-secondary{% endif %}" 
-                     style="width: 55px; height: 55px; border-radius: 50%; border: 4px solid; transition: 0.3s;">
-                    <i class="bi bi-shield-lock-fill fs-4"></i>
-                </div>
-                <div class="fw-bold small text-uppercase {% if phase == 4 %}text-success{% else %}text-muted{% endif %}">Утвърден</div>
+        <div class="stepper-item {% if phase == 4 %}completed{% endif %}">
+            <div class="step-counter">
+                <i class="bi bi-shield-lock-fill fs-5"></i>
             </div>
-            
+            <div class="step-name">Утвърден</div>
         </div>
     </div>
     <div class="card shadow-lg border-0 bg-dark text-light mb-5">

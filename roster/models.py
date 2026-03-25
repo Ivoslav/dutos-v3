@@ -227,10 +227,14 @@ class Leave(models.Model):
     def save(self, *args, **kwargs):
         # АКО ОТПУСКАТА НЕ Е ГРАДСКА (а е ДО, Болничен и т.н.), ТЯ ТРИЕ НАРЯДА!
         if self.leave_type != 'city':
+            # ЗАЩИТА: Взимаме само датата, независимо дали е подаден datetime или date обект
+            start_d = self.start_date.date() if hasattr(self.start_date, 'date') else self.start_date
+            end_d = self.end_date.date() if hasattr(self.end_date, 'date') else self.end_date
+
             conflicting_shifts = DutyShift.objects.filter(
                 soldier=self.soldier,
-                date__gte=self.start_date.date(),
-                date__lte=self.end_date.date()
+                date__gte=start_d,
+                date__lte=end_d
             )
 
             # За всеки намерен конфликтен наряд:

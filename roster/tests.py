@@ -395,8 +395,10 @@ class RosterAnalyticsTests(TestCase):
         self.assertEqual(stats['total'], 3, "Грешен общ брой!")
         self.assertEqual(len(stats['duty']), 1, "Грешен брой наряд!")
         self.assertEqual(len(stats['sick']), 1, "Грешен брой болни!")
-        # Present се смята като остатък (Total - (Duty + Leaves))
-        self.assertEqual(stats['present'], 1, "Грешен брой налични!")
+        
+        # ВЕЧЕ ПРОВЕРЯВАМЕ ПООТДЕЛНО СУТРИН И ВЕЧЕР
+        self.assertEqual(stats['present_morning'], 1, "Грешен брой налични (сутрин)!")
+        self.assertEqual(stats['present_evening'], 1, "Грешен брой налични (вечер)!")
 
     # --- ТЕСТ 16: Сортиране на Класацията (Leaderboard) ---
     def test_statistics_leaderboard_order(self):
@@ -444,3 +446,72 @@ class RosterAnalyticsTests(TestCase):
         
         self.assertEqual(len(past), 1, "Вчерашният наряд липсва в 'Past'!")
         self.assertEqual(past[0].date, yesterday)
+        
+from django.utils import timezone
+import datetime
+
+class RosterAdvancedQATests(TestCase):
+    def setUp(self):
+        # Създаваме базова структура за тестовете
+        self.course = CourseOrRank.objects.create(name="3-ти курс", priority=3)
+        self.duty_type = DutyType.objects.create(name="Дежурен", weight=2)
+        self.duty_type.allowed_ranks.add(self.course)
+
+        # Създаваме двама войници от 1-ва рота
+        self.soldier1 = Soldier.objects.create(
+            first_name="Иван", last_name="Иванов", faculty_number="111", company="1", rank_group=self.course, score=10
+        )
+        self.soldier2 = Soldier.objects.create(
+            first_name="Петър", last_name="Петров", faculty_number="222", company="1", rank_group=self.course, score=5
+        )
+
+        self.today = datetime.date.today()
+        self.yesterday = self.today - datetime.timedelta(days=1)
+        self.tomorrow = self.today + datetime.timedelta(days=1)
+
+    def test_01_city_leave_morning_vs_evening(self):
+        """ ТЕСТ 1: Градската отпуска брои ли се сутрин и маха ли се вечер? """
+        # Войник 1 излиза Градска отпуска днес от 17:30
+        Leave.objects.create(
+            soldier=self.soldier1,
+            start_date=timezone.make_aware(datetime.datetime.combine(self.today, datetime.time(17, 30))),
+            end_date=timezone.make_aware(datetime.datetime.combine(self.today, datetime.time(21, 0))),
+            leave_type='city'
+        )
+
+        # Симулираме зареждане на страницата с графика за днес
+        response = self.client.get('/roster/daily/')
+        report = response.context['report']['1'] # Взимаме репорта за 1-ва рота
+
+        # ПРОВЕРКИ:
+        # И двамата трябва да са налице сутринта!
+        self.assertEqual(report['present_morning'], 2, "ГРЕШКА: Градската отпуска изяде сутрешния строй!")
+        # Вечерта Войник 1 го няма, значи само 1 е налице!
+        self.assertEqual(report['present_evening'], 1, "ГРЕШКА: Войникът в градска отпуска фигурира на вечерна проверка!")
+
+    def test_02_emergency_swap_24h_rule(self):
+        """ ТЕСТ 2: Смяната по спешност пази ли 24-часовата почивка? """
+        # Войник 2 е бил наряд ВЧЕРА
+        DutyShift.objects.create(soldier=self.soldier2, date=self.yesterday, duty_type=self.duty_type)
+
+        # Войник 1 е наряд ДНЕС
+        shift_today = DutyShift.objects.create(soldier=self.soldier1, date=self.today, duty_type=self.duty_type)
+
+        # Капитанът се опитва да смени Войник 1 с Войник 2 (който е уморен)
+        response = self.client.post(f'/roster/swap/{shift_today.id}/', {'new_soldier': self.soldier2.id, 'reason': 'Тест'})
+
+        # ПРОВЕРКА: Нарядът ТРЯБВА да си остане на Войник 1!
+        shift_today.refresh_from_db()
+        self.assertEqual(shift_today.soldier, self.soldier1, "ФАТАЛНО: Системата позволи наряд на уморен човек!")
+
+    def test_03_modal_candidates_exclusion(self):
+        """ ТЕСТ 3: Умният модал крие ли хората, които са наряд утре? """
+        # Войник 2 е разпределен за наряд УТРЕ
+        DutyShift.objects.create(soldier=self.soldier2, date=self.tomorrow, duty_type=self.duty_type)
+
+        # Зареждаме графика за ДНЕС
+        response = self.client.get('/roster/daily/')
+        candidates = response.context['swap_candidates']
+
+        # ПРОВЕРКА: Войник 2 НЕ ТРЯБВА да е в списъка с възможни заместници за днес!
+        self.assertNotIn(self.soldier2, candidates, "ГРЕШКА: Войник с наряд за утре се показва като свободен заместник днес!")
