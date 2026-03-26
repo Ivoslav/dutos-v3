@@ -9,7 +9,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from datetime import timedelta
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.permissions import AllowAny
-from .models import Announcement, DutyShift, DutyType, Soldier, Leave, Announcement, ShiftPreference, AuthorizedDevice, ShiftSwapRequest
+from .models import Announcement, AnnouncementReceipt, DutyShift, DutyType, Soldier, Leave, Announcement, ShiftPreference, AuthorizedDevice, ShiftSwapRequest
 from .forms import DutyShiftForm, BatchLeaveForm
 from django.db.models import Count, Q, Case, When, Value, IntegerField
 from django.contrib import messages
@@ -57,7 +57,31 @@ def dashboard_view(request):
         leave_type='sick'
     ).select_related('soldier')
 
-    active_alert = Announcement.objects.filter(is_active=True).order_by('-created_at').first()
+    # ==========================================
+    # НОВО: АКТИВНИ ОПОВЕСТЯВАНИЯ И ПРОГРЕС БАР
+    # ==========================================
+    from .models import Announcement
+    active_announcements_raw = Announcement.objects.filter(is_active=True).prefetch_related('receipts__soldier').order_by('-created_at')
+    
+    announcements_data = []
+    for ann in active_announcements_raw:
+        receipts = ann.receipts.all()
+        total_count = receipts.count()
+        read_count = receipts.filter(is_read=True).count()
+        unread_receipts = receipts.filter(is_read=False)
+        
+        # Пресмятаме процента за прогрес бара
+        percent = int((read_count / total_count * 100)) if total_count > 0 else 0
+        
+        announcements_data.append({
+            'obj': ann,
+            'total_count': total_count,
+            'read_count': read_count,
+            'unread_count': total_count - read_count,
+            'percent': percent,
+            'unread_soldiers': [r.soldier for r in unread_receipts]
+        })
+
     context = {
         'today': today,
         'total_soldiers': total_soldiers,
@@ -69,7 +93,7 @@ def dashboard_view(request):
         'tomorrow_status': tomorrow_status,
         'tomorrow_class': tomorrow_class,
         'sick_today': sick_today,
-        'active_alert': active_alert,
+        'announcements_data': announcements_data,
     }
     return render(request, 'roster/dashboard.html', context)
 
@@ -516,26 +540,25 @@ def save_batch_leave(request):
         
     return redirect('roster_stats')
 
-@user_passes_test(lambda u: u.is_superuser) # Само за Админи!
+@user_passes_test(lambda u: u.is_superuser)
 def debug_panel(request):
     if request.method == 'POST':
         action = request.POST.get('action')
-        out = StringIO() # Тук ще ловим отговора от терминала
+        out = StringIO()
         
         try:
+            # 1. ИНИЦИАЛИЗАЦИЯ
             if action == 'seed_data':
                 call_command('seed_data', stdout=out)
                 messages.success(request, "✅ Армията е презаредена успешно!")
-            
             elif action == 'create_duties':
-                call_command('create_duties', stdout=out) # Скриптът от предния ни разговор
+                call_command('create_duties', stdout=out)
                 messages.success(request, "✅ Видовете наряди са създадени!")
-
             elif action == 'fix_duties':
                 call_command('fix_duties', stdout=out)
                 messages.success(request, "✅ Правилата за наряди са оправени!")
 
-            # --- НОВО: СИМУЛАЦИЯ НА ЖИВОТ ---
+            # 2. МЕСЕЧЕН ЦИКЪЛ И БОРСА
             elif action == 'simulate_activity':
                 import random
                 today = datetime.date.today()
@@ -543,109 +566,94 @@ def debug_panel(request):
                 ty, tm = next_month_date.year, next_month_date.month
                 _, num_days = calendar.monthrange(ty, tm)
 
-                # Изчистваме старите тестови данни
                 Leave.objects.all().delete()
                 ShiftPreference.objects.all().delete()
-
                 soldiers = list(Soldier.objects.filter(is_active=True))
                 leave_types = ['sick', 'home', 'mission', 'arrest']
                 
-                # 1. Раздаваме 20 случайни отпуски/болнични
                 for _ in range(20):
                     s = random.choice(soldiers)
-                    start_day = random.randint(1, num_days - 5)
-                    start_d = datetime.date(ty, tm, start_day)
+                    start_d = datetime.date(ty, tm, random.randint(1, num_days - 5))
                     end_d = start_d + timedelta(days=random.randint(2, 5))
                     Leave.objects.create(soldier=s, start_date=start_d, end_date=end_d, leave_type=random.choice(leave_types), reason="Авто-Симулация")
 
-                # 2. Раздаваме 80 случайни желания (Доброволци и Блокирани)
                 for _ in range(80):
                     s = random.choice(soldiers)
                     p_date = datetime.date(ty, tm, random.randint(1, num_days))
                     ShiftPreference.objects.get_or_create(soldier=s, date=p_date, defaults={'preference': random.choice(['want', 'cannot'])})
 
-                messages.success(request, f"🎭 СИМУЛАЦИЯ: Инжектирани са 20 отпуски/болнични и 80 желания за месец {tm}/{ty}!")
-            
-            # --- НОВО: СИМУЛАЦИЯ НА БОРСАТА (СМЕНИ) ---
+                messages.success(request, f"🎭 СИМУЛАЦИЯ: Инжектирани са 20 отпуски и 80 желания за месец {tm}/{ty}!")
+                
+            elif action == 'generate_month':
+                today = datetime.date.today()
+                next_month_date = (today.replace(day=28) + timedelta(days=4))
+                # Викаме алгоритъма директно
+                _generate_smart_month(next_month_date.year, next_month_date.month)
+                messages.success(request, f"🤖 Месечният график за {next_month_date.month}/{next_month_date.year} е генериран успешно като чернова!")
+
             elif action == 'simulate_swaps':
                 import random
-                from .models import ShiftSwapRequest # За всеки случай
-                
-                # Взимаме наряди от бъдещето, които не са официални (само public_draft или admin_draft)
                 future_shifts = list(DutyShift.objects.filter(date__gte=datetime.date.today()).exclude(status='official'))
-                
                 if not future_shifts:
-                    messages.error(request, "❌ Няма бъдещи наряди! Първо генерирай график.")
+                    messages.error(request, "❌ Няма бъдещи наряди! Първо генерирай месечен график.")
                     return redirect('debug_panel')
 
-                # Избираме 10 случайни наряда за симулация
                 shifts_to_swap = random.sample(future_shifts, min(10, len(future_shifts)))
-                
-                created_open = 0
-                created_waiting = 0
+                created_open, created_waiting = 0, 0
 
                 for shift in shifts_to_swap:
-                    # Проверяваме дали този наряд вече няма пусната заявка
-                    if hasattr(shift, 'shiftswaprequest'):
-                        continue
-                        
-                    # 50% шанс да е само "open", 50% шанс някой вече да го е "взел"
+                    if hasattr(shift, 'shiftswaprequest'): continue
                     if random.choice([True, False]):
-                        # Само отворена заявка
-                        ShiftSwapRequest.objects.create(
-                            shift=shift,
-                            requester=shift.soldier,
-                            reason=random.choice(["Имам изпит", "Лични причини", "Не се чувствам добре", "Пътуване"]),
-                            status='open'
-                        )
+                        ShiftSwapRequest.objects.create(shift=shift, requester=shift.soldier, reason="Авто Симулация", status='open')
                         created_open += 1
                     else:
-                        # Намерен е заместник
-                        # Търсим някой от същия курс, който няма наряд днес
                         busy_ids = DutyShift.objects.filter(date=shift.date).values_list('soldier_id', flat=True)
-                        candidates = Soldier.objects.filter(
-                            rank_group=shift.soldier.rank_group, 
-                            is_active=True
-                        ).exclude(id__in=busy_ids).exclude(id=shift.soldier.id)
-
+                        candidates = Soldier.objects.filter(rank_group=shift.soldier.rank_group, is_active=True).exclude(id__in=busy_ids).exclude(id=shift.soldier.id)
                         if candidates.exists():
-                            substitute = random.choice(list(candidates))
-                            ShiftSwapRequest.objects.create(
-                                shift=shift,
-                                requester=shift.soldier,
-                                substitute=substitute,
-                                reason=random.choice(["Изпит", "Семеен повод", "Трябва да уча"]),
-                                status='waiting'
-                            )
+                            ShiftSwapRequest.objects.create(shift=shift, requester=shift.soldier, substitute=random.choice(list(candidates)), reason="Тест", status='waiting')
                             created_waiting += 1
-                        else:
-                            # Ако няма свободни съкурсници, просто го пускаме отворен
-                            ShiftSwapRequest.objects.create(
-                                shift=shift,
-                                requester=shift.soldier,
-                                reason="Няма заместници",
-                                status='open'
-                            )
-                            created_open += 1
+                messages.success(request, f"🔄 БОРСА: Генерирани {created_open} отворени и {created_waiting} чакащи заявки!")
 
-                messages.success(request, f"🔄 СИМУЛАЦИЯ БОРСА: Генерирани са {created_open} отворени заявки и {created_waiting} чакащи одобрение!")
-            
-            
-            elif action == 'generate_today':
-                today = datetime.date.today().strftime('%Y-%m-%d')
-                call_command('generate_roster', today, stdout=out)
-                messages.success(request, f"✅ Графикът за днес ({today}) е генериран!")
+            # 3. ОПОВЕСТЯВАНЕ И ТЕЛЕФОНИ
+            elif action == 'simulate_reads':
+                from .models import AnnouncementReceipt
+                import random
+                from django.utils import timezone
+                
+                active_receipts = list(AnnouncementReceipt.objects.filter(announcement__is_active=True, is_read=False))
+                if not active_receipts:
+                    messages.error(request, "❌ Няма активни непрочетени разписки!")
+                    return redirect('debug_panel')
+                    
+                to_read = random.sample(active_receipts, max(1, int(len(active_receipts) * random.uniform(0.3, 0.7))))
+                for r in to_read:
+                    r.is_read = True
+                    r.read_at = timezone.now()
+                    r.save()
+                messages.success(request, f"📱 СИМУЛАЦИЯ: {len(to_read)} курсанти цъкнаха РАЗБРАХ на телефоните си!")
+                
+            elif action == 'clear_announcements':
+                Announcement.objects.all().delete()
+                messages.success(request, "🧹 Всички съобщения (и техните разписки) бяха изтрити!")
 
-            elif action == 'generate_tomorrow':
-                tomorrow = (datetime.date.today() + datetime.timedelta(days=1)).strftime('%Y-%m-%d')
-                call_command('generate_roster', tomorrow, stdout=out)
-                messages.success(request, f"✅ Графикът за утре ({tomorrow}) е генериран!")
+            # 4. ДИСЦИПЛИНА
+            elif action == 'simulate_discipline':
+                from .models import DisciplinaryRecord
+                import random
+                soldiers = list(Soldier.objects.filter(is_active=True))
+                count = 0
+                for _ in range(30):
+                    s = random.choice(soldiers)
+                    rtype = random.choice(['star', 'dot'])
+                    reason = "Отлично дежурство (Симулация)" if rtype == 'star' else "Закъснение за строй (Симулация)"
+                    DisciplinaryRecord.objects.create(soldier=s, record_type=rtype, reason=reason)
+                    count += 1
+                messages.success(request, f"🎖️ ДОСИЕТА: Разпределени са {count} случайни звездички и черни точки!")
 
         except Exception as e:
             messages.error(request, f"❌ ГРЕШКА: {str(e)}")
         
         messages.info(request, out.getvalue())
-
         return redirect('debug_panel')
 
     return render(request, 'roster/debug_tools.html')
@@ -663,26 +671,30 @@ def emergency_list(request):
 @user_passes_test(lambda u: u.is_superuser)
 def post_announcement(request):
     if request.method == 'POST':
+        announcement_type = request.POST.get('announcement_type', 'info') # НОВО: Взимаме типа
         title = request.POST.get('title')
         message = request.POST.get('message')
-        target = request.POST.get('target') # <--- ВАЖНО
+        target = request.POST.get('target', 'all')
         
+        # Деактивираме старите активни съобщения
         Announcement.objects.filter(is_active=True).update(is_active=False)
         
-        # Записваме и target, за да е доволна базата
-        Announcement.objects.create(
+        # Създаваме новото (Моделът автоматично ще генерира Разписките за войниците!)
+        new_ann = Announcement.objects.create(
+            announcement_type=announcement_type, # НОВО
             title=title, 
             message=message, 
             target=target, 
             is_active=True
         )
-        messages.warning(request, "🚨 ТРЕВОГАТА Е ОБЯВЕНА УСПЕШНО!")
+        messages.warning(request, f"📢 ОПОВЕСТЯВАНЕ ({new_ann.get_announcement_type_display()}) Е ОБЯВЕНО УСПЕШНО!")
     return redirect('roster_home')
 
 @user_passes_test(lambda u: u.is_superuser)
 def dismiss_announcement(request):
+    # Когато Командирът отмени тревогата, тя става неактивна
     Announcement.objects.filter(is_active=True).update(is_active=False)
-    messages.success(request, "✅ Тревогата е отменена.")
+    messages.success(request, "✅ Оповестяването е отменено (деактивирано).")
     return redirect('roster_home')
 
 def _generate_smart_month(year, month):
@@ -928,37 +940,60 @@ def api_my_shifts(request):
         "upcoming_shifts": data
     })
    
-# --- АПИ ЗА ТАБ 2: СЪОБЩЕНИЯ ---
+# --- АПИ 1: Взимане на съобщенията за телефона ---
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def api_announcements(request):
-    """ Връща само съобщенията, които се отнасят за този курсант """
+    """ Връща разписките за АКТИВНИТЕ съобщения за този курсант """
     soldier = request.user.soldier
     
-    # Определяме кои съобщения го касаят
-    valid_targets = ['all']
-    if soldier.company == '1': valid_targets.append('1')
-    elif soldier.company == '2': valid_targets.append('2')
-    elif soldier.company == 'Млади': valid_targets.extend(['young', 'Млади'])
-    
-    # Ако е от щаба/висшия състав
-    if soldier.position in ['ДК', 'ЗДК', 'ОК', 'ЗОК', 'КВ']:
-        valid_targets.append('staff')
-
-    alerts = Announcement.objects.filter(is_active=True, target__in=valid_targets).order_by('-created_at')
+    # Тъй като бекендът вече автоматично създава разписки за правилните хора,
+    # тук просто дърпаме разписките на този войник!
+    receipts = AnnouncementReceipt.objects.filter(
+        soldier=soldier,
+        announcement__is_active=True
+    ).select_related('announcement').order_by('-announcement__created_at')
     
     data = []
-    for a in alerts:
+    for r in receipts:
         data.append({
-            "title": a.title,
-            "message": a.message,
-            "date": a.created_at.strftime('%d.%m.%Y %H:%M')
+            "receipt_id": r.id, # Важно за следващата стъпка!
+            "title": r.announcement.title,
+            "type": r.announcement.announcement_type,
+            "type_display": r.announcement.get_announcement_type_display(),
+            "message": r.announcement.message,
+            "date": r.announcement.created_at.strftime('%d.%m.%Y %H:%M'),
+            "is_read": r.is_read
         })
         
     return Response({
         "status": "success",
         "alerts": data
     })
+
+# --- АПИ 2: Цъкане на бутона "РАЗБРАХ" от телефона ---
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def api_acknowledge_alert(request):
+    soldier = request.user.soldier
+    receipt_id = request.data.get('receipt_id')
+
+    if not receipt_id:
+        return Response({"detail": "Липсва ID на разписката."}, status=400)
+
+    try:
+        receipt = AnnouncementReceipt.objects.get(id=receipt_id, soldier=soldier)
+        
+        # Ако вече не го е прочел, го маркираме
+        if not receipt.is_read:
+            receipt.is_read = True
+            receipt.read_at = timezone.now() # Записваме точния час и секунда!
+            receipt.save()
+            
+        return Response({"status": "success", "message": "Оповестяването е маркирано като прочетено."})
+        
+    except AnnouncementReceipt.DoesNotExist:
+        return Response({"detail": "Разписката не е намерена или нямаш достъп до нея."}, status=404)
 
 
 # --- АПИ ЗА ТАБ 3: ЖЕЛАНИЯ / БОРСА ---

@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import AuthorizedDevice, Soldier, DutyType, DutyShift, Leave, ShiftPreference
+from .models import AuthorizedDevice, Soldier, DutyType, DutyShift, Leave, ShiftPreference,  Announcement, AnnouncementReceipt
 
 @admin.register(ShiftPreference)
 class ShiftPreferenceAdmin(admin.ModelAdmin):
@@ -57,6 +57,23 @@ class LeaveAdmin(admin.ModelAdmin):
         return f"{delta.days} дни"
     days_count.short_description = 'Продължителност'
 
+class AnnouncementReceiptInline(admin.TabularInline):
+    model = AnnouncementReceipt
+    extra = 0
+    readonly_fields = ('soldier', 'is_read', 'read_at', 'has_volunteered')
+    can_delete = False
+
+@admin.register(Announcement)
+class AnnouncementAdmin(admin.ModelAdmin):
+    list_display = ('announcement_type', 'title', 'target', 'created_at', 'is_active')
+    list_filter = ('announcement_type', 'target', 'is_active')
+    inlines = [AnnouncementReceiptInline] # Това показва списъка с разписки вътре в самото съобщение!
+
+@admin.register(AnnouncementReceipt)
+class AnnouncementReceiptAdmin(admin.ModelAdmin):
+    list_display = ('soldier', 'announcement', 'is_read', 'read_at', 'has_volunteered')
+    list_filter = ('is_read', 'has_volunteered', 'announcement__announcement_type')
+    search_fields = ('soldier__last_name', 'announcement__title')
 
 # 4. Другите модели
 admin.site.register(DutyType)

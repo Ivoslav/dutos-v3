@@ -2,21 +2,69 @@
 
 {% block content %}
 <div class="container py-4">
-    <h1 class="text-danger mb-4">🛠️ Команден Пулт (Cheats)</h1>
+    <h1 class="text-danger mb-4 fw-bold"><i class="bi bi-tools"></i> Команден Пулт (Cheats)</h1>
     
     <div class="row g-4">
         <div class="col-md-6">
             <div class="card border-danger h-100 shadow-sm">
                 <div class="card-header bg-danger text-white fw-bold">
-                    ☢️ ЯДРЕНА ОПЦИЯ (Рестарт)
+                    ☢️ Инициализация на Базата
                 </div>
                 <div class="card-body">
-                    <p class="card-text">Изтрива всички войници и наряди. Създава нова армия от 150 души.</p>
-                    <form method="post">
+                    <p class="small text-muted mb-3">Използвай при първоначално пускане или ако счупиш нещо тотално.</p>
+                    
+                    <form method="post" class="mb-2">
                         {% csrf_token %}
                         <input type="hidden" name="action" value="seed_data">
-                        <button type="submit" class="btn btn-outline-danger w-100" onclick="return confirm('Сигурен ли си? Всичко ще бъде изтрито!')">
-                            🚀 Рестарт на Армията (Seed Data)
+                        <button type="submit" class="btn btn-outline-danger w-100 fw-bold" onclick="return confirm('Изтрива ВСИЧКО! Сигурен ли си?')">
+                            🚀 1. Рестарт на Армията (150 души)
+                        </button>
+                    </form>
+                    <form method="post" class="mb-2">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="create_duties">
+                        <button type="submit" class="btn btn-outline-dark w-100">
+                            2. Създай Видове Наряди
+                        </button>
+                    </form>
+                    <form method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="fix_duties">
+                        <button type="submit" class="btn btn-outline-dark w-100">
+                            3. Настрой Правилата (Рангове)
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card border-primary h-100 shadow-sm">
+                <div class="card-header bg-primary text-white fw-bold">
+                    🗓️ Месечен График и Борса
+                </div>
+                <div class="card-body">
+                    <p class="small text-muted mb-3">Пълен цикъл на генериране за следващия месец.</p>
+                    
+                    <form method="post" class="mb-2">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="simulate_activity">
+                        <button type="submit" class="btn btn-outline-info text-dark fw-bold w-100">
+                            🎭 1. Инжектирай Желания и Отпуски
+                        </button>
+                    </form>
+                    <form method="post" class="mb-2">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="generate_month">
+                        <button type="submit" class="btn btn-primary fw-bold w-100 shadow-sm">
+                            🤖 2. Генерирай Месечен График
+                        </button>
+                    </form>
+                    <form method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="simulate_swaps">
+                        <button type="submit" class="btn btn-outline-warning text-dark fw-bold w-100">
+                            🔄 3. Симулирай Заявки на Борсата
                         </button>
                     </form>
                 </div>
@@ -26,76 +74,52 @@
         <div class="col-md-6">
             <div class="card border-warning h-100 shadow-sm">
                 <div class="card-header bg-warning text-dark fw-bold">
-                    ⚙️ Наряди и Правила
+                    📢 Оповестяване и Телефони
                 </div>
-                <div class="card-body d-grid gap-2">
-                    <p class="small text-muted mb-2">Използвай, ако нарядите липсват или правилата са счупени.</p>
+                <div class="card-body">
+                    <p class="small text-muted mb-3">Тестване на модула за Тревоги и Разписки.</p>
+                    
+                    <form method="post" class="mb-3">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="simulate_reads">
+                        <button type="submit" class="btn btn-warning text-dark fw-bold w-100 shadow-sm">
+                            <i class="bi bi-phone-vibrate"></i> Симулирай кликане на "Разбрах"
+                        </button>
+                    </form>
                     
                     <form method="post">
                         {% csrf_token %}
-                        <input type="hidden" name="action" value="create_duties">
-                        <button type="submit" class="btn btn-outline-dark w-100">
-                            1. Създай Видове Наряди
-                        </button>
-                    </form>
-                    <form method="post">
-                        {% csrf_token %}
-                        <input type="hidden" name="action" value="fix_duties">
-                        <button type="submit" class="btn btn-outline-dark w-100">
-                            2. Настрой Правилата (Fix Duties)
-                        </button>
-                    </form>
-                    <form method="post" class="mt-2">
-                        {% csrf_token %}
-                        <input type="hidden" name="action" value="simulate_activity">
-                        <button type="submit" class="btn btn-outline-info fw-bold w-100">
-                            🎭 3. Симулирай Живот (Отпуски и Желания)
-                        </button>
-                    </form>
-                    <form method="post" class="mt-2">
-                        {% csrf_token %}
-                        <input type="hidden" name="action" value="simulate_swaps">
-                        <button type="submit" class="btn btn-outline-warning text-dark fw-bold w-100">
-                            🔄 4. Симулирай Борса (Заявки)
+                        <input type="hidden" name="action" value="clear_announcements">
+                        <button type="submit" class="btn btn-outline-danger btn-sm w-100" onclick="return confirm('Изтрива всички съобщения?')">
+                            🧹 Изчисти всички стари съобщения
                         </button>
                     </form>
                 </div>
             </div>
         </div>
 
-        <div class="col-md-12">
-            <div class="card border-primary h-100 shadow-sm">
-                <div class="card-header bg-primary text-white fw-bold">
-                    📅 Генератор на График
+        <div class="col-md-6">
+            <div class="card border-success h-100 shadow-sm">
+                <div class="card-header bg-success text-white fw-bold">
+                    🎖️ Дисциплина и Досиета
                 </div>
                 <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <form method="post">
-                                {% csrf_token %}
-                                <input type="hidden" name="action" value="generate_today">
-                                <button type="submit" class="btn btn-primary w-100 p-3">
-                                    ☀️ Генерирай за ДНЕС
-                                </button>
-                            </form>
-                        </div>
-                        <div class="col-md-6">
-                            <form method="post">
-                                {% csrf_token %}
-                                <input type="hidden" name="action" value="generate_tomorrow">
-                                <button type="submit" class="btn btn-outline-primary w-100 p-3">
-                                    🌙 Генерирай за УТРЕ
-                                </button>
-                            </form>
-                        </div>
-                    </div>
+                    <p class="small text-muted mb-3">Запълва досиетата, за да тестваш Системата за награди на КПП-то.</p>
+                    
+                    <form method="post" class="mb-2">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="simulate_discipline">
+                        <button type="submit" class="btn btn-outline-success fw-bold w-100">
+                            ⭐ Разпредели случайни Звезди и Точки
+                        </button>
+                    </form>
                 </div>
             </div>
         </div>
     </div>
     
     <div class="text-center mt-5">
-        <a href="{% url 'roster_home' %}" class="btn btn-link text-muted">⬅️ Обратно към сайта</a>
+        <a href="{% url 'roster_home' %}" class="btn btn-link text-muted fw-bold">⬅️ Обратно към Главното табло</a>
     </div>
 </div>
 {% endblock %}

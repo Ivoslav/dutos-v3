@@ -22,6 +22,7 @@ urlpatterns = [
     path('api/login/', views.api_device_login, name='api_device_login'),
     path('api/my-shifts/', views.api_my_shifts, name='api_my_shifts'),
     path('api/announcements/', views.api_announcements, name='api_announcements'),
+    path('api/announcements/ack/', views.api_acknowledge_alert, name='api_acknowledge_alert'),
     path('api/preferences/', views.api_submit_preference, name='api_submit_preference'),
     path('api/profile/', views.api_profile, name='api_profile'),
     path('api/daily-roster/', views.api_daily_roster, name='api_daily_roster'),

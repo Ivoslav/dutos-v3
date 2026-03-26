@@ -12,27 +12,78 @@
             <a href="{% url 'daily_roster' %}" class="btn btn-primary fw-bold shadow-sm">📋 Пълен График</a>
         </div>
     </div>
-    {% if active_alert %}
-    <div class="alert alert-danger border-danger border-3 shadow mb-4" role="alert">
-        <div class="d-flex justify-content-between align-items-center">
-            <div>
-                <div class="d-flex align-items-center gap-2 mb-1">
-                    <span class="badge bg-dark text-uppercase">{{ active_alert.get_target_display }}</span>
-                    <h3 class="alert-heading fw-bold mb-0">🚨 {{ active_alert.title }}</h3>
+    {% if announcements_data %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-danger shadow-sm">
+                <div class="card-header bg-danger text-white fw-bold d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-broadcast me-2"></i> АКТИВНИ ОПОВЕСТЯВАНИЯ (ИЗИСКВАТ РЕАКЦИЯ)</span>
+                    <form action="{% url 'dismiss_announcement' %}" method="post" class="m-0">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-sm btn-light text-danger fw-bold shadow-sm">🔕 ОТМЕНИ ТРЕВОГАТА</button>
+                    </form>
                 </div>
-                <p class="mb-0 fs-5">{{ active_alert.message }}</p>
-                <small class="text-muted">{{ active_alert.created_at|date:"d.m.Y H:i" }}</small>
+                <div class="card-body p-0">
+                    <ul class="list-group list-group-flush">
+                        {% for item in announcements_data %}
+                        <li class="list-group-item p-3 {% if item.obj.announcement_type == 'alarm' or item.obj.announcement_type == 'fire' %}bg-danger bg-opacity-10{% endif %}">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <div>
+                                    <h5 class="fw-bold mb-1">{{ item.obj.get_announcement_type_display }} - {{ item.obj.title }}</h5>
+                                    <small class="text-muted"><i class="bi bi-clock"></i> Пуснато: {{ item.obj.created_at|date:"d.m.Y H:i" }} | Цел: <strong>{{ item.obj.get_target_display }}</strong></small>
+                                </div>
+                                <button class="btn btn-sm btn-outline-danger fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#unreadModal{{ item.obj.id }}">
+                                    <i class="bi bi-search me-1"></i> Виж неразбралите ({{ item.unread_count }})
+                                </button>
+                            </div>
+                            
+                            <div class="d-flex align-items-center mt-3">
+                                <div class="progress flex-grow-1" style="height: 20px; border-radius: 10px; background-color: #e9ecef;">
+                                    <div class="progress-bar {% if item.percent == 100 %}bg-success{% else %}bg-danger progress-bar-striped progress-bar-animated{% endif %}" 
+                                         role="progressbar" style="width: {{ item.percent }}%;">
+                                        <span class="fw-bold fs-6 text-white">{{ item.percent }}%</span>
+                                    </div>
+                                </div>
+                                <span class="ms-3 fw-bold text-muted" style="min-width: 80px; text-align: right;">
+                                    {{ item.read_count }} / {{ item.total_count }} 
+                                </span>
+                            </div>
+
+                            <div class="modal fade" id="unreadModal{{ item.obj.id }}" tabindex="-1" aria-hidden="true">
+                                <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+                                    <div class="modal-content border-danger">
+                                        <div class="modal-header bg-danger text-white">
+                                            <h5 class="modal-title fw-bold"><i class="bi bi-person-x-fill me-2"></i> Непрочели съобщението</h5>
+                                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                        </div>
+                                        <div class="modal-body p-0">
+                                            {% if item.unread_soldiers %}
+                                                <ul class="list-group list-group-flush">
+                                                    {% for s in item.unread_soldiers %}
+                                                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                                                            <span><strong>{{ s.last_name }}</strong> ({{ s.company }} рота)</span>
+                                                            <span class="badge bg-danger text-uppercase">Не е видял</span>
+                                                        </li>
+                                                    {% endfor %}
+                                                </ul>
+                                            {% else %}
+                                                <div class="p-4 text-center text-success fw-bold">
+                                                    <i class="bi bi-check-circle-fill fs-1 d-block mb-2"></i>
+                                                    Всички са прочели съобщението!
+                                                </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
             </div>
-            {% if user.is_superuser %}
-            <form action="{% url 'dismiss_announcement' %}" method="post">
-                {% csrf_token %}
-                <button type="submit" class="btn btn-danger fw-bold">🔕 ОТМЕНИ</button>
-            </form>
-            {% endif %}
         </div>
     </div>
     {% endif %}
-
     <div class="row g-3 mb-4">
         <div class="col-md-3">
             <div class="card border-0 shadow-sm h-100 border-start border-5 border-success">
@@ -135,13 +186,13 @@
         <div class="col-md-4">
             
     
-    <div class="card shadow-sm border-0 mb-4 {% if active_alert %}bg-secondary text-white{% else %}bg-danger text-white{% endif %}">
+    <div class="card shadow-sm border-0 mb-4 {% if announcements_data %}bg-secondary text-white{% else %}bg-danger text-white{% endif %}">
         <div class="card-body">
             <h5 class="fw-bold mb-3">
-                {% if active_alert %}📡 АКТИВНО ОПОВЕСТЯВАНЕ{% else %}📢 ИЗВЪНРЕДНО ИЗВЕСТЯВАНЕ{% endif %}
+                {% if announcements_data %}📡 АКТИВНО ОПОВЕСТЯВАНЕ{% else %}📢 ИЗВЪНРЕДНО ИЗВЕСТЯВАНЕ{% endif %}
             </h5>
             
-            {% if not active_alert %}
+            {% if not announcements_data %}
                 <form action="{% url 'post_announcement' %}" method="post">
                     {% csrf_token %}
                     <div class="mb-2">

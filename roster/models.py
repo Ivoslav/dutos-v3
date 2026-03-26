@@ -121,26 +121,75 @@ class Soldier(models.Model):
 # Най-долу във файла, замени Announcement с това:
 class Announcement(models.Model):
     TARGET_CHOICES = [
-        ('all', '📢 ВСИЧКИ'),
-        ('1', '⚓ 1-ва Рота'),
-        ('2', '⚕️ 2-ра Рота'),
-        ('young', '👶 Млади Курсанти'),
-        ('staff', '⭐ Щаб / Офицери'),
+        ('all', 'Целия батальон'),
+        ('1', '1-ва рота'),
+        ('2', '2-ра рота'),
+        ('3', '3-та рота'),
+        ('4', '4-та рота'),
     ]
 
-    title = models.CharField(max_length=100, verbose_name="Заглавие")
-    message = models.TextField(verbose_name="Съобщение")
-    # ТОВА ПОЛЕ Е ВИНОВНИКА ЗА ГРЕШКАТА - ТРЯБВА ДА ГО ИМА:
-    target = models.CharField(max_length=10, choices=TARGET_CHOICES, default='all', verbose_name="Получател")
-    created_at = models.DateTimeField(auto_now_add=True)
-    is_active = models.BooleanField(default=True, verbose_name="Активно")
+    TYPE_CHOICES = [
+        ('alarm', '🚨 ТРЕВОГА'),
+        ('fire', '🔥 ПОЖАР'),
+        ('assembly', '📍 СБОР'),
+        ('formation', '💂 СТРОЙ (Промяна/Преглед)'),
+        ('mission', '✈️ КОМАНДИРОВКА'),
+        ('volunteer', '🙋 ЗАЯВЯВАНЕ НА ЖЕЛАНИЕ'),
+        ('info', 'ℹ️ ИНФОРМАЦИЯ'),
+    ]
+
+    title = models.CharField(max_length=200, verbose_name="Заглавие/Тема", default="Важно съобщение")
+    announcement_type = models.CharField(max_length=20, choices=TYPE_CHOICES, default='info', verbose_name="Тип оповестяване")
+    message = models.TextField(verbose_name="Съобщение/Детайли")
+    target = models.CharField(max_length=50, choices=TARGET_CHOICES, default='all', verbose_name="До кого")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Създадено на")
+    is_active = models.BooleanField(default=True, verbose_name="Активно (Изисква реакция)")
+
+    def save(self, *args, **kwargs):
+        is_new = self.pk is None
+        super().save(*args, **kwargs)
+
+        # АВТОМАТИЗАЦИЯ: Създаване на индивидуални разписки в момента на публикуване!
+        if is_new:
+            soldiers = Soldier.objects.filter(is_active=True)
+            
+            # Ако не е за всички, филтрираме по рота
+            if self.target != 'all':
+                soldiers = soldiers.filter(company=self.target)
+
+            # Генерираме разписки за всички таргетирани войници (с 1 бърза заявка към базата)
+            receipts = [
+                AnnouncementReceipt(announcement=self, soldier=s)
+                for s in soldiers
+            ]
+            AnnouncementReceipt.objects.bulk_create(receipts)
 
     def __str__(self):
-        return f"[{self.get_target_display()}] {self.title}"
-    
+        return f"{self.get_announcement_type_display()} - {self.title} ({self.get_target_display()})"
+
     class Meta:
         verbose_name = "Извънредно съобщение"
-        verbose_name_plural = "Извънредни съобщения"
+        verbose_name_plural = "Оповестяване"
+        ordering = ['-created_at']
+
+
+class AnnouncementReceipt(models.Model):
+    announcement = models.ForeignKey(Announcement, on_delete=models.CASCADE, related_name='receipts', verbose_name="Съобщение")
+    soldier = models.ForeignKey(Soldier, on_delete=models.CASCADE, related_name='receipts', verbose_name="Военнослужещ")
+    is_read = models.BooleanField(default=False, verbose_name="Прочетено/Разбрано")
+    read_at = models.DateTimeField(null=True, blank=True, verbose_name="Точен час на прочитане")
+    
+    # Специално поле за оповестявания тип "Командировка" или "Заявяване на желание"
+    has_volunteered = models.BooleanField(null=True, blank=True, verbose_name="Записал се (Доброволец)")
+
+    def __str__(self):
+        status = "✅ Прочел" if self.is_read else "❌ НЕ Е ПРОЧЕЛ"
+        return f"{self.soldier.last_name} - {status}"
+
+    class Meta:
+        verbose_name = "Разписка за оповестяване"
+        verbose_name_plural = "Разписки"
+        unique_together = ('announcement', 'soldier') # Един войник има само 1 разписка за дадено съобщение
 
 class DutyType(models.Model):
     name = models.CharField(max_length=100)
@@ -250,27 +299,6 @@ class Leave(models.Model):
         # Записваме самата отпуска
         super(Leave, self).save(*args, **kwargs)
     
-class Announcement(models.Model):
-    TARGET_CHOICES = [
-        ('all', '📢 ВСИЧКИ'),
-        ('1', '⚓ 1-ва Рота'),
-        ('2', '⚕️ 2-ра Рота'),
-        ('young', '👶 Млади Курсанти'),
-        ('staff', '⭐ Щаб / Офицери'),
-    ]
-
-    title = models.CharField(max_length=100, verbose_name="Заглавие")
-    message = models.TextField(verbose_name="Съобщение")
-    target = models.CharField(max_length=10, choices=TARGET_CHOICES, default='all', verbose_name="Получател")
-    created_at = models.DateTimeField(auto_now_add=True)
-    is_active = models.BooleanField(default=True, verbose_name="Активно")
-
-    def __str__(self):
-        return f"[{self.get_target_display()}] {self.title}"
-
-    class Meta:
-        verbose_name = "Извънредно съобщение"
-        verbose_name_plural = "Извънредни съобщения"
         
 class ShiftPreference(models.Model):
     PREF_CHOICES = [
