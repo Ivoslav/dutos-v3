@@ -2,6 +2,7 @@
 
 {% block content %}
 <div class="container-fluid py-3">
+    
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             <h2 class="fw-bold text-dark mb-0">⚓ КОМАНДЕН ПУЛТ</h2>
@@ -12,39 +13,44 @@
             <a href="{% url 'daily_roster' %}" class="btn btn-primary fw-bold shadow-sm">📋 Пълен График</a>
         </div>
     </div>
-    {% if announcements_data %}
+
+    {% if emergencies_data %}
     <div class="row mb-4">
         <div class="col-12">
             <div class="card border-danger shadow-sm">
                 <div class="card-header bg-danger text-white fw-bold d-flex justify-content-between align-items-center">
-                    <span><i class="bi bi-broadcast me-2"></i> АКТИВНИ ОПОВЕСТЯВАНИЯ (ИЗИСКВАТ РЕАКЦИЯ)</span>
-                    <form action="{% url 'dismiss_announcement' %}" method="post" class="m-0">
-                        {% csrf_token %}
-                        <button type="submit" class="btn btn-sm btn-light text-danger fw-bold shadow-sm">🔕 ОТМЕНИ ТРЕВОГАТА</button>
-                    </form>
+                    <span><i class="bi bi-broadcast me-2"></i> АКТИВНИ ТРЕВОГИ (ИЗИСКВАТ НЕЗАБАВНА РЕАКЦИЯ)</span>
+                    <span class="badge bg-light text-danger rounded-pill">{{ emergencies_data|length }} активни</span>
                 </div>
                 <div class="card-body p-0">
                     <ul class="list-group list-group-flush">
-                        {% for item in announcements_data %}
-                        <li class="list-group-item p-3 {% if item.obj.announcement_type == 'alarm' or item.obj.announcement_type == 'fire' %}bg-danger bg-opacity-10{% endif %}">
+                        {% for item in emergencies_data %}
+                        <li class="list-group-item p-3 bg-danger bg-opacity-10">
                             <div class="d-flex justify-content-between align-items-start mb-2">
                                 <div>
-                                    <h5 class="fw-bold mb-1">{{ item.obj.get_announcement_type_display }} - {{ item.obj.title }}</h5>
+                                    <h5 class="fw-bold mb-1 text-danger">{{ item.obj.get_announcement_type_display }} - {{ item.obj.title }}</h5>
                                     <small class="text-muted"><i class="bi bi-clock"></i> Пуснато: {{ item.obj.created_at|date:"d.m.Y H:i" }} | Цел: <strong>{{ item.obj.get_target_display }}</strong></small>
                                 </div>
-                                <button class="btn btn-sm btn-outline-danger fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#unreadModal{{ item.obj.id }}">
-                                    <i class="bi bi-search me-1"></i> Виж неразбралите ({{ item.unread_count }})
-                                </button>
+                                <div class="d-flex gap-2">
+                                    <button class="btn btn-sm btn-outline-danger fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#unreadModal{{ item.obj.id }}">
+                                        <i class="bi bi-search me-1"></i> Неразбрали ({{ item.unread_count }})
+                                    </button>
+                                    <form action="{% url 'dismiss_announcement' %}" method="post" class="m-0">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="announcement_id" value="{{ item.obj.id }}">
+                                        <button type="submit" class="btn btn-sm btn-danger fw-bold shadow-sm" title="Отмени Тревогата"><i class="bi bi-bell-slash-fill"></i></button>
+                                    </form>
+                                </div>
                             </div>
                             
                             <div class="d-flex align-items-center mt-3">
-                                <div class="progress flex-grow-1" style="height: 20px; border-radius: 10px; background-color: #e9ecef;">
+                                <div class="progress flex-grow-1" style="height: 20px; border-radius: 10px; background-color: #f8d7da;">
                                     <div class="progress-bar {% if item.percent == 100 %}bg-success{% else %}bg-danger progress-bar-striped progress-bar-animated{% endif %}" 
                                          role="progressbar" style="width: {{ item.percent }}%;">
                                         <span class="fw-bold fs-6 text-white">{{ item.percent }}%</span>
                                     </div>
                                 </div>
-                                <span class="ms-3 fw-bold text-muted" style="min-width: 80px; text-align: right;">
+                                <span class="ms-3 fw-bold text-danger" style="min-width: 80px; text-align: right;">
                                     {{ item.read_count }} / {{ item.total_count }} 
                                 </span>
                             </div>
@@ -68,8 +74,7 @@
                                                 </ul>
                                             {% else %}
                                                 <div class="p-4 text-center text-success fw-bold">
-                                                    <i class="bi bi-check-circle-fill fs-1 d-block mb-2"></i>
-                                                    Всички са прочели съобщението!
+                                                    <i class="bi bi-check-circle-fill fs-1 d-block mb-2"></i> Всички са прочели!
                                                 </div>
                                             {% endif %}
                                         </div>
@@ -84,6 +89,7 @@
         </div>
     </div>
     {% endif %}
+
     <div class="row g-3 mb-4">
         <div class="col-md-3">
             <div class="card border-0 shadow-sm h-100 border-start border-5 border-success">
@@ -132,9 +138,7 @@
                 </div>
             </div>
         </div>
-
-
-    <div class="row g-4">
+    </div> <div class="row g-4 mb-4">
         
         <div class="col-md-8">
             <div class="card shadow-sm border-0 h-100">
@@ -185,33 +189,103 @@
 
         <div class="col-md-4">
             
-    
-    <div class="card shadow-sm border-0 mb-4 {% if announcements_data %}bg-secondary text-white{% else %}bg-danger text-white{% endif %}">
-        <div class="card-body">
-            <h5 class="fw-bold mb-3">
-                {% if announcements_data %}📡 АКТИВНО ОПОВЕСТЯВАНЕ{% else %}📢 ИЗВЪНРЕДНО ИЗВЕСТЯВАНЕ{% endif %}
-            </h5>
-            
-            {% if not announcements_data %}
-                <form action="{% url 'post_announcement' %}" method="post">
-                    {% csrf_token %}
-                    <div class="mb-2">
-                        <select name="target" class="form-select form-select-sm mb-2 fw-bold text-danger">
-                            <option value="all">📢 ДО ВСИЧКИ (ТРЕВОГА)</option>
-                            <option value="1">⚓ САМО 1-ва Рота</option>
-                            <option value="2">⚕️ САМО 2-ра Рота</option>
-                            <option value="young">👶 САМО Млади Курсанти</option>
-                            <option value="staff">⭐ САМО Офицери/Щаб</option>
-                        </select>
+            <div class="card shadow-sm border-0 mb-4 bg-dark text-white">
+                <div class="card-body">
+                    <h5 class="fw-bold mb-3">📢 НОВО ОПОВЕСТЯВАНЕ</h5>
+                    
+                    <form action="{% url 'post_announcement' %}" method="post" id="announcementForm">
+                        {% csrf_token %}
+                        <div class="mb-2">
+                            
+                            <div class="d-flex gap-1 mb-3 overflow-auto pb-1" style="white-space: nowrap;">
+                                <button type="button" class="btn btn-sm btn-outline-light text-nowrap fw-bold" onclick="applyPreset('formation', '🕒 Сутрешен строй', 'Сутрешният строй се изтегля за: \nПричина: ')">☀️ Сутрин</button>
+                                <button type="button" class="btn btn-sm btn-outline-light text-nowrap fw-bold" onclick="applyPreset('formation', '🕒 Обеден строй', 'Обедният строй се отлага за: \nПричина: ')">🍲 Обед</button>
+                                <button type="button" class="btn btn-sm btn-outline-light text-nowrap fw-bold" onclick="applyPreset('formation', '🕒 Вечерна проверка', 'Вечерната проверка ще се проведе в: \nПричина: ')">🌙 Вечер</button>
+                            </div>
 
-                        <input type="text" name="title" class="form-control form-control-sm mb-2" placeholder="Заглавие" required>
-                        <textarea name="message" class="form-control form-control-sm" rows="2" placeholder="Текст..." required></textarea>
-                    </div>
-                    <button type="submit" class="btn btn-light text-danger fw-bold w-100">🚀 ПУСНИ СЪОБЩЕНИЕ</button>
-                </form>
-            {% endif %}
-        </div>
-    </div>
+                            <div class="row g-2 mb-2">
+                                <div class="col-6">
+                                    <select name="announcement_type" id="id_announcement_type" class="form-select form-select-sm fw-bold">
+                                        <option value="formation" selected>💂 СТРОЙ (Промяна)</option>
+                                        <option value="assembly">📍 СБОР</option>
+                                        <option value="volunteer">🙋 ДОБРОВОЛЦИ</option>
+                                        <option value="mission">✈️ КОМАНДИР</option>
+                                        <option value="info">ℹ️ ИНФОРМАЦИЯ</option>
+                                        <option value="fire" class="text-danger">🔥 ПОЖАР</option>
+                                        <option value="alarm" class="text-white bg-danger">🚨 ТРЕВОГА</option>
+                                    </select>
+                                </div>
+                                <div class="col-6">
+                                    <select name="target" class="form-select form-select-sm fw-bold text-danger">
+                                        <option value="all">📢 ДО ВСИЧКИ</option>
+                                        <option value="1">⚓ 1-ва Рота</option>
+                                        <option value="2">⚕️ 2-ра Рота</option>
+                                        <option value="young">👶 Млади</option>
+                                        <option value="staff">⭐ Офицери</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <input type="text" name="title" id="id_title" class="form-control form-control-sm mb-2 border-0" placeholder="Заглавие" required>
+                            <textarea name="message" id="id_message" class="form-control form-control-sm border-0" rows="3" placeholder="Текст на съобщението или причина..." required></textarea>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-light text-danger fw-bold w-100 shadow-sm">🚀 ПУСНИ СЪОБЩЕНИЕ</button>
+                    </form>
+
+                    <script>
+                        function applyPreset(type, title, message) {
+                            document.getElementById('id_announcement_type').value = type;
+                            document.getElementById('id_title').value = title;
+                            document.getElementById('id_message').value = message;
+                            document.getElementById('id_message').focus();
+                        }
+                    </script>
+                </div>
+            </div>
+
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-header bg-dark text-white fw-bold d-flex justify-content-between">
+                    <span>⏱️ Дневен Ред</span>
+                    <span>{{ today|date:"d.m.Y" }}</span>
+                </div>
+                <ul class="list-group list-group-flush">
+                    
+                    <li class="list-group-item">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="text-muted fw-bold">☀️ Сутрешен строй</span>
+                            {% if schedule.morning.override %}<span class="badge bg-warning text-dark fs-6 shadow-sm">ПРОМЕНЕН</span>{% else %}<strong class="fs-5 text-dark">{{ schedule.morning.default }}</strong>{% endif %}
+                        </div>
+                        {% if schedule.morning.override %}{% include 'roster/partials/schedule_override.html' with item=schedule.morning.override %}{% endif %}
+                    </li>
+
+                    <li class="list-group-item">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="text-muted fw-bold">🍲 Обеден строй</span>
+                            {% if schedule.lunch.override %}<span class="badge bg-warning text-dark fs-6 shadow-sm">ПРОМЕНЕН</span>{% else %}<strong class="fs-5 text-dark">{{ schedule.lunch.default }}</strong>{% endif %}
+                        </div>
+                        {% if schedule.lunch.override %}{% include 'roster/partials/schedule_override.html' with item=schedule.lunch.override %}{% endif %}
+                    </li>
+
+                    <li class="list-group-item">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="text-muted fw-bold">🌙 Вечерна проверка</span>
+                            {% if schedule.evening.override %}<span class="badge bg-warning text-dark fs-6 shadow-sm">ПРОМЕНЕН</span>{% else %}<strong class="fs-5 text-dark">{{ schedule.evening.default }}</strong>{% endif %}
+                        </div>
+                        {% if schedule.evening.override %}{% include 'roster/partials/schedule_override.html' with item=schedule.evening.override %}{% endif %}
+                    </li>
+                </ul>
+
+                {% if schedule.other %}
+                <div class="card-footer bg-light border-top">
+                    <h6 class="fw-bold text-secondary mb-3"><i class="bi bi-info-circle-fill"></i> ДРУГИ СЪОБЩЕНИЯ:</h6>
+                    {% for item in schedule.other %}
+                        {% include 'roster/partials/schedule_override.html' with item=item %}
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+
             <div class="card shadow-sm border-0">
                 <div class="card-header bg-white fw-bold text-danger border-bottom">
                     🤒 Болни / В Лазарет
@@ -231,11 +305,7 @@
                 </ul>
             </div>
 
-        </div>
-    </div>
-</div>
-
-<div class="modal fade" id="soldierModal" tabindex="-1" aria-hidden="true">
+        </div> </div> </div> <div class="modal fade" id="soldierModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-body text-center p-5">
@@ -260,7 +330,6 @@ document.addEventListener("DOMContentLoaded", function() {
         var target = e.target.closest(".open-profile");
         if (target) {
             e.preventDefault();
-            // Показваме лоудър, докато се теглят данните
             modalContent.innerHTML = '<div class="modal-body text-center p-5"><div class="spinner-border text-primary"></div><div class="mt-2 text-muted">Зареждане на досие...</div></div>';
             soldierModal.show();
             
@@ -268,7 +337,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 .then(res => res.text())
                 .then(html => { 
                     modalContent.innerHTML = html; 
-                    bindDutyForm(); // За да работи и назначаването на наряд от тук
+                    bindDutyForm(); 
                 })
                 .catch(err => console.error("Грешка при зареждане:", err));
         }

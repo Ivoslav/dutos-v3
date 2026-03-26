@@ -58,29 +58,54 @@ def dashboard_view(request):
     ).select_related('soldier')
 
     # ==========================================
-    # НОВО: АКТИВНИ ОПОВЕСТЯВАНИЯ И ПРОГРЕС БАР
+    # НОВО: РАЗДЕЛЯНЕ НА ТРЕВОГИ И ДНЕВЕН РЕД
     # ==========================================
     from .models import Announcement
     active_announcements_raw = Announcement.objects.filter(is_active=True).prefetch_related('receipts__soldier').order_by('-created_at')
     
-    announcements_data = []
+    emergencies_data = []
+    routine_data = []
+    
     for ann in active_announcements_raw:
         receipts = ann.receipts.all()
         total_count = receipts.count()
         read_count = receipts.filter(is_read=True).count()
         unread_receipts = receipts.filter(is_read=False)
         
-        # Пресмятаме процента за прогрес бара
         percent = int((read_count / total_count * 100)) if total_count > 0 else 0
         
-        announcements_data.append({
+        data_dict = {
             'obj': ann,
             'total_count': total_count,
             'read_count': read_count,
             'unread_count': total_count - read_count,
             'percent': percent,
             'unread_soldiers': [r.soldier for r in unread_receipts]
-        })
+        }
+        
+        if ann.announcement_type in ['alarm', 'fire', 'assembly']:
+            emergencies_data.append(data_dict)
+        else:
+            routine_data.append(data_dict)
+
+    # ИНТЕЛИГЕНТНО ВГРАЖДАНЕ В ДНЕВНИЯ РЕД
+    schedule = {
+        'morning': {'default': '08:00', 'override': None},
+        'lunch': {'default': '13:30', 'override': None},
+        'evening': {'default': '20:30', 'override': None},
+        'other': []
+    }
+    
+    for item in routine_data:
+        t = item['obj'].title.lower()
+        if ('сутрин' in t or 'сутрешен' in t) and not schedule['morning']['override']:
+            schedule['morning']['override'] = item
+        elif ('обед' in t or 'обяд' in t) and not schedule['lunch']['override']:
+            schedule['lunch']['override'] = item
+        elif 'вечер' in t and not schedule['evening']['override']:
+            schedule['evening']['override'] = item
+        else:
+            schedule['other'].append(item)
 
     context = {
         'today': today,
@@ -93,7 +118,8 @@ def dashboard_view(request):
         'tomorrow_status': tomorrow_status,
         'tomorrow_class': tomorrow_class,
         'sick_today': sick_today,
-        'announcements_data': announcements_data,
+        'emergencies_data': emergencies_data,
+        'schedule': schedule,
     }
     return render(request, 'roster/dashboard.html', context)
 
@@ -675,10 +701,7 @@ def post_announcement(request):
         title = request.POST.get('title')
         message = request.POST.get('message')
         target = request.POST.get('target', 'all')
-        
-        # Деактивираме старите активни съобщения
-        Announcement.objects.filter(is_active=True).update(is_active=False)
-        
+                
         # Създаваме новото (Моделът автоматично ще генерира Разписките за войниците!)
         new_ann = Announcement.objects.create(
             announcement_type=announcement_type, # НОВО
@@ -692,9 +715,13 @@ def post_announcement(request):
 
 @user_passes_test(lambda u: u.is_superuser)
 def dismiss_announcement(request):
-    # Когато Командирът отмени тревогата, тя става неактивна
-    Announcement.objects.filter(is_active=True).update(is_active=False)
-    messages.success(request, "✅ Оповестяването е отменено (деактивирано).")
+    ann_id = request.POST.get('announcement_id')
+    if ann_id:
+        Announcement.objects.filter(id=ann_id).update(is_active=False)
+    else:
+        Announcement.objects.filter(is_active=True).update(is_active=False)
+        
+    messages.success(request, "✅ Оповестяването е отменено (премахнато от таблото).")
     return redirect('roster_home')
 
 def _generate_smart_month(year, month):
