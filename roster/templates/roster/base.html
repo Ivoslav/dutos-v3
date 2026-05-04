@@ -48,68 +48,128 @@
             font-size: 0.85rem;
             color: #495057;
         }
+
+        /* МАГИЯТА ЗА ПАДАЩИТЕ МЕНЮТА НА HOVER */
+        @media all and (min-width: 992px) {
+            .navbar .dropdown-menu {
+                display: block; /* Държим го рендерирано, но скрито */
+                visibility: hidden;
+                opacity: 0;
+                transform: translateY(10px); /* Леко плъзгане нагоре за красота */
+                
+                /* ТУК Е ЗАБАВЯНЕТО ПРИ ИЗЛИЗАНЕ (0.4 секунди буфер) */
+                transition: opacity 0.4s ease, visibility 0s ease 0.4s, transform 0.4s ease;
+                margin-top: 0; /* Махаме дупката между бутона и менюто */
+            }
+
+            /* ИНВИЗИБЪЛ ЩИТ (Безопасна зона около менюто) */
+            .navbar .dropdown-menu::before {
+                content: '';
+                position: absolute;
+                top: -20px; left: -20px; right: -20px; bottom: -20px;
+                z-index: -1;
+            }
+
+            /* КОГАТО ПОСОЧИШ С МИШКАТА (Отваря се мигновено) */
+            .navbar .dropdown:hover .dropdown-menu {
+                visibility: visible;
+                opacity: 1;
+                transform: translateY(0);
+                /* 0 секунди забавяне на видимостта при влизане */
+                transition: opacity 0.2s ease, visibility 0s ease 0s, transform 0.2s ease;
+            }
+        }
     </style>
   </head>
   <body hx-boost="true">
     
-    <nav class="navbar navbar-expand-xl navbar-dark shadow-sm mb-4">
-      <div class="container-fluid px-4"> <a class="navbar-brand" href="{% url 'roster_home' %}">
-            <i class="bi bi-shield-shaded me-2"></i>DUTOS v3
-        </a>
-        
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-          <span class="navbar-toggler-icon"></span>
-        </button>
-        
-        <div class="collapse navbar-collapse" id="navbarNav">
-          <ul class="navbar-nav me-auto gap-1 ms-lg-4"> <li class="nav-item">
-              <a class="nav-link px-3" href="{% url 'roster_home' %}">
-                  <i class="bi bi-speedometer2 me-1"></i> Пулт
-              </a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link px-3" href="{% url 'roster_calendar' %}">
-                  <i class="bi bi-calendar-week me-1"></i> Календар
-              </a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link px-3" href="{% url 'daily_roster' %}">
-                  <i class="bi bi-clipboard-check me-1"></i> График
-              </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link px-3" href="{% url 'roster_stats' %}">
-                    <i class="bi bi-bar-chart-line me-1"></i> Статистика
-                </a>
-              </li>
-              <li class="nav-item">
-              <a class="nav-link px-3" href="{% url 'roster_lifecycle' %}">
-                  <i class="bi bi-gear-wide-connected me-1"></i> Месечен Цикъл
-              </a>
-              </li>
-              <li class="nav-item ms-lg-2">
-                <a class="nav-link px-3 text-warning fw-bold border border-warning border-opacity-50 rounded" href="{% url 'daily_leave_manager' %}">
-                    <i class="bi bi-door-open-fill me-1"></i> КПП
-                </a>
-              </li>
-          </ul>
-          
-          <ul class="navbar-nav gap-2">
-            {% if user.is_superuser %}
-                <li class="nav-item">
-                    <a class="nav-link px-3 bg-white bg-opacity-10 text-warning rounded" href="{% url 'debug_panel' %}">
-                        <i class="bi bi-tools me-1"></i> CHEATS
-                    </a>
-                </li>
-            {% endif %}
-            <li class="nav-item">
-                <a class="nav-link px-3 bg-white bg-opacity-10 rounded" href="/admin/" target="_blank">
-                    <i class="bi bi-gear-fill me-1"></i> Админ
-                </a>
-            </li>
-          </ul>
+    <!-- ГЛАВНА НАВИГАЦИЯ -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4 shadow-sm py-3">
+        <div class="container-fluid px-4">
+            <!-- Лого / Име на системата (Уголемено с fs-4) -->
+            <a class="navbar-brand fw-bold fs-4" href="{% url 'roster_home' %}">
+                ⚓ DUTOS <span class="badge bg-primary ms-1" style="font-size: 0.6em;">v3</span>
+            </a>
+            
+            <!-- Бутон за мобилни телефони -->
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <!-- Менютата -->
+            <div class="collapse navbar-collapse" id="mainNavigation">
+                
+                <!-- ПРОМЯНА: mx-auto ги центрира, fs-5 ги прави по-големи -->
+                <ul class="navbar-nav mx-auto mb-2 mb-lg-0 fs-5">
+                    
+                    <!-- 1. КОМАНДЕН ПУЛТ -->
+                    <li class="nav-item mx-2">
+                        <a class="nav-link" href="{% url 'roster_home' %}">🏠 Пулт</a>
+                    </li>
+
+                    <!-- 2. ГРАФИЦИ -->
+                    <li class="nav-item dropdown mx-2">
+                        <a class="nav-link dropdown-toggle" href="#" id="rosterDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            📅 Наряди
+                        </a>
+                        <ul class="dropdown-menu shadow border-0 fs-6" aria-labelledby="rosterDropdown">
+                            <li><a class="dropdown-item py-2" href="{% url 'daily_roster' %}"><strong>Дневен График</strong><br><small class="text-muted">Кой е на служба днес</small></a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item py-2" href="{% url 'roster_lifecycle' %}"><strong>Генератор (Месец)</strong><br><small class="text-muted">Автоматично планиране</small></a></li>
+                        </ul>
+                    </li>
+
+                    <!-- 3. ЛИЧЕН СЪСТАВ -->
+                    <li class="nav-item dropdown mx-2">
+                        <a class="nav-link dropdown-toggle" href="#" id="personnelDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            👥 Състав
+                        </a>
+                        <ul class="dropdown-menu shadow border-0 fs-6" aria-labelledby="personnelDropdown">
+                            <li><a class="dropdown-item py-2" href="{% url 'roster_stats' %}"><strong>Статистика и Точки</strong><br><small class="text-muted">Натовареност и масови отпуски</small></a></li>
+                        </ul>
+                    </li>
+
+                    <!-- 4. СИСТЕМА (Само за Админи) -->
+                    {% if user.is_superuser %}
+                    <li class="nav-item dropdown mx-2">
+                        <a class="nav-link dropdown-toggle text-warning" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            ⚙️ Система
+                        </a>
+                        <ul class="dropdown-menu shadow border-0 fs-6" aria-labelledby="adminDropdown">
+                            <li><a class="dropdown-item py-2" href="{% url 'debug_panel' %}">🐛 Лаборатория (Чийтове)</a></li>
+                            <li><a class="dropdown-item py-2" href="/admin/">🛡️ База Данни (Админ)</a></li>
+                        </ul>
+                    </li>
+                    {% endif %}
+
+                </ul>
+
+                <!-- Профил и Изход (Вдясно) -->
+                <ul class="navbar-nav fs-5">
+                    {% if user.is_authenticated %}
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle fw-bold text-white" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            👤 {{ user.username|upper }}
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end shadow border-0 fs-6" aria-labelledby="userDropdown">
+                            <li><a class="dropdown-item" href="#">Моят Профил</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <form method="POST" action="/admin/logout/">
+                                    {% csrf_token %}
+                                    <button type="submit" class="dropdown-item text-danger fw-bold">Изход</button>
+                                </form>
+                            </li>
+                        </ul>
+                    </li>
+                    {% else %}
+                    <li class="nav-item">
+                        <a class="nav-link btn btn-outline-light px-4 fw-bold" href="/admin/login/">Вход</a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </div>
         </div>
-      </div>
     </nav>
 
     <main class="container">
@@ -137,7 +197,7 @@
 
     <footer>
         <div class="container">
-            <strong>DUTOS v3</strong> &copy; 2026 ВВМУ "Н. Й. Вапцаров" &bull; Оперативно табло
+            <strong>DUTOS</strong> &copy; 2026 ВВМУ "Н. Й. Вапцаров" &bull; Оперативно табло
         </div>
     </footer>
 

@@ -8,10 +8,6 @@
             <h2 class="fw-bold text-dark mb-0">⚓ КОМАНДЕН ПУЛТ</h2>
             <p class="text-muted mb-0">ВВМУ "Н. Й. Вапцаров" • {{ today|date:"l, d F Y" }}</p>
         </div>
-        <div>
-            <a href="{% url 'debug_panel' %}" class="btn btn-warning fw-bold shadow-sm">🛠️ Инструменти</a>
-            <a href="{% url 'daily_roster' %}" class="btn btn-primary fw-bold shadow-sm">📋 Пълен График</a>
-        </div>
     </div>
 
     {% if emergencies_data %}
