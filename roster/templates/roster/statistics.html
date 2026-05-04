@@ -29,45 +29,97 @@
     <div class="tab-content bg-white p-4 border border-top-0 rounded-bottom shadow-sm">
         
         <div class="tab-pane fade show active" id="points">
-            {% regroup leaderboard by rank_group.name as course_groups %}
-            <div class="accordion" id="accordionPoints">
-                {% for group in course_groups %}
-                <div class="accordion-item">
-                    <h2 class="accordion-header" id="headingPoints{{ forloop.counter }}">
-                        <button class="accordion-button {% if not forloop.first %}collapsed{% endif %} fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#collapsePoints{{ forloop.counter }}">
-                            {{ group.grouper }} <span class="badge bg-primary ms-2 rounded-pill">{{ group.list|length }} души</span>
-                        </button>
-                    </h2>
-                    <div id="collapsePoints{{ forloop.counter }}" class="accordion-collapse collapse {% if forloop.first %}show{% endif %}" data-bs-parent="#accordionPoints">
-                        <div class="accordion-body p-0">
-                            <table class="table table-hover table-sm align-middle mb-0">
-                                <thead class="table-light"><tr><th>Име</th><th>Фак. №</th><th class="text-center">Точки</th><th style="width: 25%">Натовареност</th><th class="text-end pe-3">Действие</th></tr></thead>
-                                <tbody>
-                                    {% for s in group.list %}
-                                    <tr>
-                                        <td class="fw-bold">
-                                            {{ s.rank_title }} {{ s.smart_name }}
-                                            {% if s.position != 'Редови' %}
-                                                <span class="badge bg-info text-dark ms-1" style="font-size: 0.7em;">{{ s.position }}</span>
-                                            {% endif %}
-                                        </td>
-                                        <td class="text-muted small">{{ s.faculty_number }}</td>
-                                        <td class="text-center fs-6 fw-bold text-primary">{{ s.score }}</td>
-                                        <td>
-                                            <div class="score-bar"><div class="score-fill {% if s.score >= 15 %}high-score{% endif %}" style="width: {% if s.score > 20 %}100{% else %}{{ s.score|add:s.score|add:s.score|add:s.score|add:s.score }}%{% endif %}"></div></div>
-                                        </td>
-                                        <td class="text-end pe-3">
-                                            <button class="btn btn-sm btn-outline-secondary open-profile" data-url="{% url 'soldier_profile' s.id %}">👤 Досие</button>
-                                        </td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
+            
+            <!-- 1. ОТВАРЯМЕ ФОРМАТА И Я НАСОЧВАМЕ КЪМ НОВИЯ API URL -->
+            <form method="POST" action="{% url 'save_batch_leave' %}">
+                {% csrf_token %}
+
+                <!-- 2. КОНТРОЛЕН ПАНЕЛ (ВИЖДА СЕ САМО ОТ АДМИН) -->
+                {% if user.is_superuser %}
+                <div class="card mb-3 border-primary bg-light shadow-sm">
+                    <div class="card-body py-2">
+                        <div class="row align-items-end g-2">
+                            <div class="col-md-2">
+                                <label class="small fw-bold text-muted">Начало</label>
+                                <input type="date" name="start_date" class="form-control form-control-sm" required>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="small fw-bold text-muted">Край</label>
+                                <input type="date" name="end_date" class="form-control form-control-sm" required>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="small fw-bold text-muted">Вид</label>
+                                <select name="leave_type" class="form-select form-select-sm">
+                                    <option value="city">Градска (ГО)</option>
+                                    <option value="home">Домашна (ДО)</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="small fw-bold text-muted">Причина</label>
+                                <input type="text" name="reason" class="form-control form-control-sm" placeholder="Напр. Награда или Уикенд">
+                            </div>
+                            <div class="col-md-2">
+                                <button type="submit" class="btn btn-primary btn-sm w-100 fw-bold">💾 Запиши</button>
+                            </div>
                         </div>
                     </div>
                 </div>
-                {% endfor %}
-            </div>
+                {% endif %}
+
+                <!-- 3. СПИСЪКЪТ С ХОРАТА (С ЧЕКБОКСОВЕ) -->
+                {% regroup leaderboard by rank_group.name as course_groups %}
+                <div class="accordion" id="accordionPoints">
+                    {% for group in course_groups %}
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="headingPoints{{ forloop.counter }}">
+                            <button class="accordion-button {% if not forloop.first %}collapsed{% endif %} fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#collapsePoints{{ forloop.counter }}">
+                                {{ group.grouper }} <span class="badge bg-primary ms-2 rounded-pill">{{ group.list|length }} души</span>
+                            </button>
+                        </h2>
+                        <div id="collapsePoints{{ forloop.counter }}" class="accordion-collapse collapse {% if forloop.first %}show{% endif %}" data-bs-parent="#accordionPoints">
+                            <div class="accordion-body p-0">
+                                <table class="table table-hover table-sm align-middle mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            {% if user.is_superuser %}
+                                            <th style="width: 40px;" class="text-center">✔</th>
+                                            {% endif %}
+                                            <th>Име</th><th>Фак. №</th><th class="text-center">Точки</th><th style="width: 25%">Натовареност</th><th class="text-end pe-3">Действие</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for s in group.list %}
+                                        <tr>
+                                            {% if user.is_superuser %}
+                                            <td class="text-center">
+                                                <!-- ЧЕКБОКСЪТ, КОЙТО ПРАЩА ID-ТО НА ВОЙНИКА КЪМ СЪРВЪРА -->
+                                                <input type="checkbox" name="selected_soldiers" value="{{ s.id }}" class="form-check-input" style="cursor: pointer;">
+                                            </td>
+                                            {% endif %}
+                                            <td class="fw-bold">
+                                                {{ s.rank_title }} {{ s.smart_name }}
+                                                {% if s.position != 'Редови' %}
+                                                    <span class="badge bg-info text-dark ms-1" style="font-size: 0.7em;">{{ s.position }}</span>
+                                                {% endif %}
+                                            </td>
+                                            <td class="text-muted small">{{ s.faculty_number }}</td>
+                                            <td class="text-center fs-6 fw-bold text-primary">{{ s.score }}</td>
+                                            <td>
+                                                <div class="score-bar"><div class="score-fill {% if s.score >= 15 %}high-score{% endif %}" style="width: {% if s.score > 20 %}100{% else %}{{ s.score|add:s.score|add:s.score|add:s.score|add:s.score }}%{% endif %}"></div></div>
+                                            </td>
+                                            <td class="text-end pe-3">
+                                                <button class="btn btn-sm btn-outline-secondary open-profile" data-url="{% url 'soldier_profile' s.id %}">👤 Досие</button>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </form> <!-- ЗАТВАРЯМЕ ФОРМАТА -->
         </div>
 
         <div class="tab-pane fade" id="company">

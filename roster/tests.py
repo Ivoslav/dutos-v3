@@ -515,3 +515,98 @@ class RosterAdvancedQATests(TestCase):
 
         # ПРОВЕРКА: Войник 2 НЕ ТРЯБВА да е в списъка с възможни заместници за днес!
         self.assertNotIn(self.soldier2, candidates, "ГРЕШКА: Войник с наряд за утре се показва като свободен заместник днес!")
+        
+        
+from django.test import TestCase, Client
+from django.contrib.auth.models import User
+from django.urls import reverse
+
+class AutomatedClickerTest(TestCase):
+    def setUp(self):
+        # Създаваме тестов браузър и тестов Админ
+        self.client = Client()
+        self.admin = User.objects.create_superuser('test_admin', 'admin@vvmu.bg', 'pass123')
+        self.client.force_login(self.admin)
+
+    def test_pages_do_not_crash(self):
+        """ Опитва да зареди основните страници и проверява да не гърмят с Error 500 """
+        
+        # Списък с имената на твоите URL адреси (тези, които не искат параметри)
+        urls_to_test = [
+            'roster_home',        # Началната
+            'roster_stats',       # Статистиката
+            'debug_panel',        # Инструментите
+            'daily_roster',       # Дневния
+            'roster_lifecycle',   # Месечния план
+        ]
+
+        print("\n🚀 СТАРТИРАНЕ НА АВТОМАТИЧНОТО КЛИКАНЕ...")
+        
+        for url_name in urls_to_test:
+            try:
+                url = reverse(url_name)
+                response = self.client.get(url)
+                
+                # Ако статусът е 200 (OK) или 302 (Пренасочване), значи страницата работи!
+                # Ако е 500 (Сървърна грешка), тестът ще гръмне и ще ти каже защо.
+                self.assertNotEqual(response.status_code, 500, f"💥 ГРЕШКА 500 НА СТРАНИЦА: {url_name}")
+                print(f"✅ Страница '{url_name}' зареди успешно!")
+                
+            except Exception as e:
+                self.fail(f"❌ Страница '{url_name}' счупи сървъра! Грешка: {e}")
+                
+class ButtonClickSimulatorTest(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.admin = User.objects.create_superuser('test_admin', 'admin@vvmu.bg', 'pass123')
+        self.client.force_login(self.admin)
+
+    def test_simulate_clicks(self):
+        print("\n🤖 СТАРТИРАНЕ НА РОБОТА ЗА КЛИКАНЕ...\n")
+
+        # --- КЛИК 1: Бутонът за ново известие на Таблото ---
+        print("🔘 Клик 1: Опит за пускане на ново известие...")
+        response1 = self.client.post(reverse('roster_home'), { # Замени с правилното URL име, ако е друго
+            'title': 'Тест',
+            'message': 'Тест съобщение',
+            'announcement_type': 'info'
+        })
+        self._analyze_response(response1, "Пускане на известие")
+
+        # --- КЛИК 2: Бутонът за Масова Отпуска (Batch Leave) ---
+        print("🔘 Клик 2: Опит за запазване на масова отпуска...")
+        # Тук просто хвърляме празни данни, за да видим дали изобщо стига до функцията
+        response2 = self.client.post(reverse('roster_stats'), { # Замени с правилното URL име
+            'start_date': '2026-05-04',
+            'end_date': '2026-05-05',
+            'leave_type': 'city',
+            'reason': 'Тест'
+        })
+        self._analyze_response(response2, "Масова отпуска")
+
+        # --- КЛИК 3: Бутонът за Генериране на Наряди ---
+        print("🔘 Клик 3: Опит за генериране на наряди...")
+        response3 = self.client.post(reverse('roster_lifecycle'), {
+            'action': 'generate',
+            'month': '5',
+            'year': '2026'
+        })
+        self._analyze_response(response3, "Генератор на наряди")
+
+        print("\n🏁 РОБОТЪТ ПРИКЛЮЧИ!\n")
+
+    def _analyze_response(self, response, action_name):
+        code = response.status_code
+        if code == 200:
+            print(f"   ⚠️ {action_name}: Върна 200 (Остана на същата страница. Вероятно грешка във формата или липсващ контекст).")
+        elif code in [301, 302]:
+            print(f"   ✅ {action_name}: Върна {code} (Успешно изпълнение и пренасочване!).")
+        elif code == 403:
+            print(f"   ⛔ {action_name}: Върна 403 (Забранено! Липсват права или CSRF токен).")
+        elif code == 404:
+            print(f"   ❓ {action_name}: Върна 404 (Грешен URL адрес, страницата не е намерена).")
+        elif code == 405:
+            print(f"   ❌ {action_name}: Върна 405 (Методът не е разрешен. Вероятно HTML формата праща GET вместо POST).")
+        else:
+            print(f"   💥 {action_name}: Върна код {code}")
+        print("-" * 50)
