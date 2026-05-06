@@ -1,12 +1,19 @@
 {% extends 'roster/base.html' %}
 
 {% block content %}
-<div class="container-fluid py-3">
-    
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             <h2 class="fw-bold text-dark mb-0">⚓ КОМАНДЕН ПУЛТ</h2>
             <p class="text-muted mb-0">ВВМУ "Н. Й. Вапцаров" • {{ today|date:"l, d F Y" }}</p>
+        </div>
+        <div>
+            <!-- Твоите стари бутони -->
+            <a href="{% url 'debug_panel' %}" class="btn btn-warning fw-bold shadow-sm">🛠️ Инструменти</a>
+            
+            <!-- НОВИЯТ БУТОН ЗА ПОДРОБЕН РАЗХОД -->
+            <a href="{% url 'daily_leave_manager' %}" class="btn btn-info fw-bold shadow-sm text-dark ms-2">📊 Подробен Разход</a>
+            
+            <a href="{% url 'daily_roster' %}" class="btn btn-primary fw-bold shadow-sm ms-2">📋 Пълен График</a>
         </div>
     </div>
 
@@ -87,7 +94,8 @@
     {% endif %}
 
     <div class="row g-3 mb-4">
-        <div class="col-md-3">
+        <!-- Променяме col-md-3 на col-md-4, за да заемат точно 100% от ширината (3х4=12) -->
+        <div class="col-md-4">
             <div class="card border-0 shadow-sm h-100 border-start border-5 border-success">
                 <div class="card-body">
                     <h6 class="text-uppercase text-muted small">Строеви състав</h6>
@@ -95,22 +103,22 @@
                         <h1 class="display-5 fw-bold text-success mb-0">{{ present_count }}</h1>
                         <span class="text-muted ms-2">/ {{ total_soldiers }}</span>
                     </div>
-                    <small class="text-success">✅ Налице в момента</small>
+                    <small class="text-success">✅ Налице в района</small>
                 </div>
             </div>
         </div>
 
-        <div class="col-md-3">
+        <div class="col-md-4">
             <div class="card border-0 shadow-sm h-100 border-start border-5 border-primary">
                 <div class="card-body">
-                    <h6 class="text-uppercase text-muted small">В Наряд</h6>
+                    <h6 class="text-uppercase text-muted small">В Наряд Днес</h6>
                     <h1 class="display-5 fw-bold text-primary mb-0">{{ on_duty_today_count }}</h1>
                     <small class="text-primary">🛡️ Изпълняват служба</small>
                 </div>
             </div>
         </div>
 
-        <div class="col-md-3">
+        <div class="col-md-4">
             <div class="card border-0 shadow-sm h-100 border-start border-5 border-warning">
                 <div class="card-body">
                     <h6 class="text-uppercase text-muted small">Отсъстващи</h6>
@@ -119,23 +127,10 @@
                 </div>
             </div>
         </div>
-
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm h-100 border-start border-5 border-{{ tomorrow_class }}">
-                <div class="card-body">
-                    <h6 class="text-uppercase text-muted small">Готовност за Утре</h6>
-                    <h3 class="fw-bold text-{{ tomorrow_class }} mb-0 mt-2">{{ tomorrow_status }}</h3>
-                    
-                    {% if not is_tomorrow_ready %}
-                    <div class="mt-2">
-                        <a href="{% url 'roster_lifecycle' %}" class="btn btn-sm btn-outline-danger w-100">📅 Към Месечния План</a>
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-    </div> <div class="row g-4 mb-4">
-        
+    </div>
+    
+    
+    <div class="row g-4 mb-4">   
         <div class="col-md-8">
             <div class="card shadow-sm border-0 h-100">
                 <div class="card-header bg-white fw-bold border-bottom">

@@ -137,7 +137,8 @@ def soldier_profile(request, soldier_id):
     today = datetime.date.today()
     upcoming_shifts = DutyShift.objects.filter(soldier=soldier, date__gte=today).order_by('date')[:5]
     past_shifts = DutyShift.objects.filter(soldier=soldier, date__lt=today).order_by('-date')[:5]
-    leaves = Leave.objects.filter(soldier=soldier).order_by('-start_date')[:5]
+    major_leaves = Leave.objects.filter(soldier=soldier).exclude(leave_type='city').order_by('-start_date')[:5]
+    city_leaves = Leave.objects.filter(soldier=soldier, leave_type='city').order_by('-start_date')[:10]
     active_stars = soldier.disciplinary_records.filter(record_type='star', is_active=True).count()
     active_dots = soldier.disciplinary_records.filter(record_type='dot', is_active=True).count()
     records = soldier.disciplinary_records.all()[:10]
@@ -151,7 +152,6 @@ def soldier_profile(request, soldier_id):
             record_type = request.POST.get('record_type')
             reason = request.POST.get('reason')
             if record_type and reason:
-                from .models import DisciplinaryRecord
                 DisciplinaryRecord.objects.create(soldier=soldier, record_type=record_type, reason=reason)
                 messages.success(request, f"{'⭐ Звездичката' if record_type == 'star' else '⚫ Черната точка'} е добавена успешно!")
             return redirect(request.META.get('HTTP_REFERER', 'roster_stats'))
@@ -159,7 +159,6 @@ def soldier_profile(request, soldier_id):
         # 2. ИЗЧИСТВАНЕ/ВРЪЩАНЕ НА ЗАПИС
         elif action == 'toggle_record':
             record_id = request.POST.get('record_id')
-            from .models import DisciplinaryRecord
             rec = get_object_or_404(DisciplinaryRecord, id=record_id)
             rec.is_active = not rec.is_active
             rec.save()
@@ -198,7 +197,8 @@ def soldier_profile(request, soldier_id):
         'soldier': soldier,
         'upcoming_shifts': upcoming_shifts,
         'past_shifts': past_shifts,
-        'leaves': leaves,
+        'city_leaves': city_leaves,
+        'major_leaves': major_leaves,
         'records': records,
         'active_stars': active_stars,
         'active_dots': active_dots,

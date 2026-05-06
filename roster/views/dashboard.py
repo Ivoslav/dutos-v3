@@ -34,19 +34,8 @@ def dashboard_view(request):
 
     # 2. ВАЖНИТЕ НАРЯДИ ДНЕС (Сортирани по тежест - ДБПК най-горе)
     key_shifts_today = DutyShift.objects.filter(date=today).exclude(status='admin_draft').select_related('soldier', 'duty_type').order_by('-duty_type__weight')[:5]
-
-    # 3. ПРОВЕРКА ЗА УТРЕ (Има ли ОФИЦИАЛЕН график?)
-    is_tomorrow_ready = DutyShift.objects.filter(date=tomorrow).exclude(status='admin_draft').exists()
-    
-    if not is_tomorrow_ready:
-        tomorrow_status = "⚠️ ЛИПСВА ГРАФИК"
-        tomorrow_class = "danger"
-    else:
-        tomorrow_count = DutyShift.objects.filter(date=tomorrow).exclude(status='admin_draft').count()
-        tomorrow_status = f"✅ Утвърден ({tomorrow_count})"
-        tomorrow_class = "success"
-
-    # 4. БЪРЗ ПОГЛЕД КЪМ БОЛНИТЕ (За сводката)
+ 
+    # 3. БЪРЗ ПОГЛЕД КЪМ БОЛНИТЕ (За сводката)
     sick_today = Leave.objects.filter(
         start_date__lte=today, 
         end_date__gte=today,
@@ -109,9 +98,6 @@ def dashboard_view(request):
         'on_leave_today_count': on_leave_today_count,
         'present_count': present_count,
         'key_shifts_today': key_shifts_today,
-        'is_tomorrow_ready': is_tomorrow_ready,
-        'tomorrow_status': tomorrow_status,
-        'tomorrow_class': tomorrow_class,
         'sick_today': sick_today,
         'emergencies_data': emergencies_data,
         'schedule': schedule,

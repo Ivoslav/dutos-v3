@@ -80,21 +80,45 @@
                 {% endfor %}
             </ul>
 
-            <h6 class="fw-bold border-bottom pb-1 text-muted text-uppercase small mt-2">🏖️ Последни Отпуски:</h6>
-            <ul class="list-group list-group-flush small" style="max-height: 120px; overflow-y: auto;">
-                {% for leave in leaves %}
+            <h6 class="fw-bold border-bottom pb-1 text-muted text-uppercase small mt-3">✈️ Важни Отсъствия (ДО, БО, Ком.):</h6>
+            <ul class="list-group list-group-flush small mb-3" style="max-height: 120px; overflow-y: auto;">
+                {% for leave in major_leaves %}
                 <li class="list-group-item d-flex justify-content-between align-items-center px-1 py-1">
                     <div>
                         <strong>{{ leave.start_date|date:"d.m" }}</strong> - <strong>{{ leave.end_date|date:"d.m" }}</strong>
                     </div>
-                    <span class="badge {% if leave.leave_type == 'revoked' %}bg-danger{% elif leave.leave_type == 'city' %}bg-info text-dark{% else %}bg-secondary{% endif %}">
+                    <span class="badge {% if leave.leave_type == 'revoked' %}bg-danger{% elif leave.leave_type == 'sick' %}bg-warning text-dark{% else %}bg-primary{% endif %}">
                         {{ leave.get_leave_type_display }}
                     </span>
                 </li>
                 {% empty %}
-                <li class="list-group-item text-muted px-1 border-0 py-1"><em>Няма записани отпуски.</em></li>
+                <li class="list-group-item text-muted px-1 border-0 py-1"><em>Няма сериозни отсъствия.</em></li>
                 {% endfor %}
             </ul>
+
+            <div class="accordion accordion-flush border border-info border-opacity-25 rounded" id="accordionCityLeaves">
+              <div class="accordion-item bg-transparent">
+                <h2 class="accordion-header" id="headingCityLeaves">
+                  <button class="accordion-button collapsed py-2 px-2 text-info small fw-bold text-uppercase shadow-none bg-info bg-opacity-10 rounded" type="button" data-bs-toggle="collapse" data-bs-target="#collapseCityLeaves" style="font-size: 0.75rem;">
+                    🏙️ История Градски Отпуски <span class="badge bg-info text-dark ms-auto rounded-pill">{{ city_leaves|length }} скорошни</span>
+                  </button>
+                </h2>
+                <div id="collapseCityLeaves" class="accordion-collapse collapse" data-bs-parent="#accordionCityLeaves">
+                  <div class="accordion-body p-0">
+                    <ul class="list-group list-group-flush small" style="max-height: 150px; overflow-y: auto;">
+                        {% for leave in city_leaves %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center px-2 py-1 bg-light border-bottom border-white">
+                            <div><i class="bi bi-geo-alt text-muted me-1"></i> {{ leave.start_date|date:"d.m.Y" }}</div>
+                            <span class="text-muted small">{{ leave.start_date|time:"H:i" }} - {{ leave.end_date|time:"H:i" }}</span>
+                        </li>
+                        {% empty %}
+                        <li class="list-group-item text-muted px-2 py-2 bg-light"><em>Няма записани градски отпуски.</em></li>
+                        {% endfor %}
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
         </div>
 
         <div class="tab-pane fade" id="actions" role="tabpanel">

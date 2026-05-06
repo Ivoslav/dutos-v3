@@ -125,6 +125,9 @@
                             👥 Състав
                         </a>
                         <ul class="dropdown-menu shadow border-0 fs-6" aria-labelledby="personnelDropdown">
+                            <!-- ТУК Е РАЗХОДЪТ -->
+                            <li><a class="dropdown-item py-2" href="{% url 'daily_leave_manager' %}"><strong>📋 Дневен Разход</strong><br><small class="text-muted">Подробна наличност и отсъстващи</small></a></li>
+                            <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item py-2" href="{% url 'roster_stats' %}"><strong>Статистика и Точки</strong><br><small class="text-muted">Натовареност и масови отпуски</small></a></li>
                         </ul>
                     </li>
