@@ -1,27 +1,18 @@
 {% extends 'roster/base.html' %}
 
 {% block content %}
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h2 class="fw-bold text-dark mb-0">⚓ КОМАНДЕН ПУЛТ</h2>
-            <p class="text-muted mb-0">ВВМУ "Н. Й. Вапцаров" • {{ today|date:"l, d F Y" }}</p>
-        </div>
-        <div>
-            <!-- Твоите стари бутони -->
-            <a href="{% url 'debug_panel' %}" class="btn btn-warning fw-bold shadow-sm">🛠️ Инструменти</a>
-            
-            <!-- НОВИЯТ БУТОН ЗА ПОДРОБЕН РАЗХОД -->
-            <a href="{% url 'daily_leave_manager' %}" class="btn btn-info fw-bold shadow-sm text-dark ms-2">📊 Подробен Разход</a>
-            
-            <a href="{% url 'daily_roster' %}" class="btn btn-primary fw-bold shadow-sm ms-2">📋 Пълен График</a>
-        </div>
+    {# ── Заглавие ── #}
+    <div class="mb-2">
+        <h2 class="fw-bold text-dark mb-0">⚓ КОМАНДЕН ПУЛТ</h2>
+        <p class="text-muted mb-0 small">ВВМУ "Н. Й. Вапцаров" &bull; {{ today|date:"l, d F Y" }}</p>
     </div>
 
+    {# ── Активни тревоги (само ако има) ── #}
     {% if emergencies_data %}
-    <div class="row mb-4">
+    <div class="row mb-2">
         <div class="col-12">
             <div class="card border-danger shadow-sm">
-                <div class="card-header bg-danger text-white fw-bold d-flex justify-content-between align-items-center">
+                <div class="card-header bg-danger text-white fw-bold d-flex justify-content-between align-items-center py-2">
                     <span><i class="bi bi-broadcast me-2"></i> АКТИВНИ ТРЕВОГИ (ИЗИСКВАТ НЕЗАБАВНА РЕАКЦИЯ)</span>
                     <span class="badge bg-light text-danger rounded-pill">{{ emergencies_data|length }} активни</span>
                 </div>
@@ -45,19 +36,15 @@
                                     </form>
                                 </div>
                             </div>
-                            
-                            <div class="d-flex align-items-center mt-3">
-                                <div class="progress flex-grow-1" style="height: 20px; border-radius: 10px; background-color: #f8d7da;">
-                                    <div class="progress-bar {% if item.percent == 100 %}bg-success{% else %}bg-danger progress-bar-striped progress-bar-animated{% endif %}" 
+                            <div class="d-flex align-items-center mt-2">
+                                <div class="progress flex-grow-1" style="height: 16px; border-radius: 8px; background-color: #f8d7da;">
+                                    <div class="progress-bar {% if item.percent == 100 %}bg-success{% else %}bg-danger progress-bar-striped progress-bar-animated{% endif %}"
                                          role="progressbar" style="width: {{ item.percent }}%;">
-                                        <span class="fw-bold fs-6 text-white">{{ item.percent }}%</span>
+                                        <span class="fw-bold small text-white">{{ item.percent }}%</span>
                                     </div>
                                 </div>
-                                <span class="ms-3 fw-bold text-danger" style="min-width: 80px; text-align: right;">
-                                    {{ item.read_count }} / {{ item.total_count }} 
-                                </span>
+                                <span class="ms-3 fw-bold text-danger" style="min-width: 70px; text-align: right;">{{ item.read_count }} / {{ item.total_count }}</span>
                             </div>
-
                             <div class="modal fade" id="unreadModal{{ item.obj.id }}" tabindex="-1" aria-hidden="true">
                                 <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
                                     <div class="modal-content border-danger">
@@ -93,56 +80,61 @@
     </div>
     {% endif %}
 
-    <div class="row g-3 mb-4">
-        <!-- Променяме col-md-3 на col-md-4, за да заемат точно 100% от ширината (3х4=12) -->
-        <div class="col-md-4">
-            <div class="card border-0 shadow-sm h-100 border-start border-5 border-success">
-                <div class="card-body">
-                    <h6 class="text-uppercase text-muted small">Строеви състав</h6>
-                    <div class="d-flex align-items-baseline">
-                        <h1 class="display-5 fw-bold text-success mb-0">{{ present_count }}</h1>
-                        <span class="text-muted ms-2">/ {{ total_soldiers }}</span>
+    <!-- ════════════════════════════════════════════════════════
+       ГЛАВЕН ДВУЗОНЕН GRID
+       Лява  (col-xl-7): Статистики + Таблица наряди
+       Дясна (col-xl-5): Оповестяване + Дневен ред + Болни
+    ════════════════════════════════════════════════════════ -->
+    <div class="row g-3">
+
+        {# ── ЛЯВА ЗОНА (Информационна) ── #}
+        <div class="col-xl-7 col-lg-7">
+
+            {# Под-ред: три статистически карти #}
+            <div class="row g-2 mb-3">
+                <div class="col-4">
+                    <div class="card border-0 shadow-sm border-start border-4 border-success">
+                        <div class="card-body py-2 px-3">
+                            <div class="text-uppercase text-muted" style="font-size: 0.65rem; letter-spacing: .05em;">Строеви състав</div>
+                            <div class="d-flex align-items-baseline gap-1">
+                                <span class="fs-3 fw-bold text-success">{{ present_count }}</span>
+                                <span class="text-muted small">/ {{ total_soldiers }}</span>
+                            </div>
+                            <div class="text-success" style="font-size: 0.75rem;">✅ Налице в района</div>
+                        </div>
                     </div>
-                    <small class="text-success">✅ Налице в района</small>
+                </div>
+                <div class="col-4">
+                    <div class="card border-0 shadow-sm border-start border-4 border-primary">
+                        <div class="card-body py-2 px-3">
+                            <div class="text-uppercase text-muted" style="font-size: 0.65rem; letter-spacing: .05em;">В Наряд Днес</div>
+                            <span class="fs-3 fw-bold text-primary">{{ on_duty_today_count }}</span>
+                            <div class="text-primary" style="font-size: 0.75rem;">🛡️ Изпълняват служба</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-4">
+                    <div class="card border-0 shadow-sm border-start border-4 border-warning">
+                        <div class="card-body py-2 px-3">
+                            <div class="text-uppercase text-muted" style="font-size: 0.65rem; letter-spacing: .05em;">Отсъстващи</div>
+                            <span class="fs-3 fw-bold text-warning">{{ on_leave_today_count }}</span>
+                            <div class="text-muted" style="font-size: 0.75rem;">🏠 Отпуск / Командировка</div>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <div class="col-md-4">
-            <div class="card border-0 shadow-sm h-100 border-start border-5 border-primary">
-                <div class="card-body">
-                    <h6 class="text-uppercase text-muted small">В Наряд Днес</h6>
-                    <h1 class="display-5 fw-bold text-primary mb-0">{{ on_duty_today_count }}</h1>
-                    <small class="text-primary">🛡️ Изпълняват служба</small>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-4">
-            <div class="card border-0 shadow-sm h-100 border-start border-5 border-warning">
-                <div class="card-body">
-                    <h6 class="text-uppercase text-muted small">Отсъстващи</h6>
-                    <h1 class="display-5 fw-bold text-warning mb-0">{{ on_leave_today_count }}</h1>
-                    <small class="text-muted">🏠 Отпуск / Командировка</small>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    
-    <div class="row g-4 mb-4">   
-        <div class="col-md-8">
-            <div class="card shadow-sm border-0 h-100">
-                <div class="card-header bg-white fw-bold border-bottom">
+            {# Таблица: Ключови фигури на длъжност днес #}
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white fw-bold border-bottom py-2">
                     👮 Ключови фигури на длъжност днес
                 </div>
                 <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0">
+                    <table class="table table-hover table-sm align-middle mb-0">
                         <thead class="table-light">
                             <tr>
                                 <th>Наряд</th>
                                 <th>Военнослужещ</th>
-                                <th>Рота/Взвод</th>
                                 <th>Действие</th>
                             </tr>
                         </thead>
@@ -154,76 +146,69 @@
                                     <div class="fw-bold">
                                         {{ shift.soldier.rank_title }} {{ shift.soldier.smart_name }}
                                         {% if shift.soldier.position != 'Редови' %}
-                                            <span class="badge bg-info text-dark ms-1" style="font-size: 0.7em;">{{ shift.soldier.position }}</span>
+                                            <span class="badge bg-info text-dark ms-1" style="font-size: 0.65em;">{{ shift.soldier.position }}</span>
                                         {% endif %}
                                     </div>
-                                </td>
-                                <td class="text-muted small">
-                                    {{ shift.soldier.company }} рота / {{ shift.soldier.platoon }} взв.
+
                                 </td>
                                 <td>
-                                    <a href="#" class="btn btn-sm btn-outline-secondary open-profile" 
+                                    <a href="#" class="btn btn-sm btn-outline-secondary open-profile"
                                        data-url="{% url 'soldier_profile' shift.soldier.id %}">👤 Досие</a>
                                 </td>
                             </tr>
                             {% empty %}
-                            <tr><td colspan="4" class="text-center py-4 text-muted">Няма данни за днес.</td></tr>
+                            <tr><td colspan="3" class="text-center py-3 text-muted">Няма данни за днес.</td></tr>
                             {% endfor %}
                         </tbody>
                     </table>
                 </div>
-                <div class="card-footer bg-white text-center">
-                    <a href="{% url 'daily_roster' %}" class="text-decoration-none">Виж пълния разход за деня &rarr;</a>
+                <div class="card-footer bg-white text-center py-2">
+                    <a href="{% url 'daily_roster' %}" class="text-decoration-none small">Виж пълния разход за деня &rarr;</a>
                 </div>
             </div>
-        </div>
 
-        <div class="col-md-4">
-            
-            <div class="card shadow-sm border-0 mb-4 bg-dark text-white">
-                <div class="card-body">
-                    <h5 class="fw-bold mb-3">📢 НОВО ОПОВЕСТЯВАНЕ</h5>
-                    
+        </div>{# /лява зона #}
+
+        {# ── ДЯСНА ЗОНА (Оперативна) ── #}
+        <div class="col-xl-5 col-lg-5 d-flex flex-column gap-3">
+
+            {# Ново оповестяване #}
+            <div class="card shadow-sm border-0 bg-dark text-white">
+                <div class="card-body py-3 px-3">
+                    <h6 class="fw-bold mb-2">📢 НОВО ОПОВЕСТЯВАНЕ</h6>
                     <form action="{% url 'post_announcement' %}" method="post" id="announcementForm">
                         {% csrf_token %}
-                        <div class="mb-2">
-                            
-                            <div class="d-flex gap-1 mb-3 overflow-auto pb-1" style="white-space: nowrap;">
-                                <button type="button" class="btn btn-sm btn-outline-light text-nowrap fw-bold" onclick="applyPreset('formation', '🕒 Сутрешен строй', 'Сутрешният строй се изтегля за: \nПричина: ')">☀️ Сутрин</button>
-                                <button type="button" class="btn btn-sm btn-outline-light text-nowrap fw-bold" onclick="applyPreset('formation', '🕒 Обеден строй', 'Обедният строй се отлага за: \nПричина: ')">🍲 Обед</button>
-                                <button type="button" class="btn btn-sm btn-outline-light text-nowrap fw-bold" onclick="applyPreset('formation', '🕒 Вечерна проверка', 'Вечерната проверка ще се проведе в: \nПричина: ')">🌙 Вечер</button>
-                            </div>
-
-                            <div class="row g-2 mb-2">
-                                <div class="col-6">
-                                    <select name="announcement_type" id="id_announcement_type" class="form-select form-select-sm fw-bold">
-                                        <option value="formation" selected>💂 СТРОЙ (Промяна)</option>
-                                        <option value="assembly">📍 СБОР</option>
-                                        <option value="volunteer">🙋 ДОБРОВОЛЦИ</option>
-                                        <option value="mission">✈️ КОМАНДИР</option>
-                                        <option value="info">ℹ️ ИНФОРМАЦИЯ</option>
-                                        <option value="fire" class="text-danger">🔥 ПОЖАР</option>
-                                        <option value="alarm" class="text-white bg-danger">🚨 ТРЕВОГА</option>
-                                    </select>
-                                </div>
-                                <div class="col-6">
-                                    <select name="target" class="form-select form-select-sm fw-bold text-danger">
-                                        <option value="all">📢 ДО ВСИЧКИ</option>
-                                        <option value="1">⚓ 1-ва Рота</option>
-                                        <option value="2">⚕️ 2-ра Рота</option>
-                                        <option value="young">👶 Млади</option>
-                                        <option value="staff">⭐ Офицери</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <input type="text" name="title" id="id_title" class="form-control form-control-sm mb-2 border-0" placeholder="Заглавие" required>
-                            <textarea name="message" id="id_message" class="form-control form-control-sm border-0" rows="3" placeholder="Текст на съобщението или причина..." required></textarea>
+                        <div class="d-flex gap-1 mb-2 overflow-auto" style="white-space: nowrap;">
+                            <button type="button" class="btn btn-sm btn-outline-light text-nowrap fw-bold" onclick="applyPreset('formation', '🕒 Сутрешен строй', 'Сутрешният строй се изтегля за: \nПричина: ')">☀️ Сутрин</button>
+                            <button type="button" class="btn btn-sm btn-outline-light text-nowrap fw-bold" onclick="applyPreset('formation', '🕒 Обеден строй', 'Обедният строй се отлага за: \nПричина: ')">🍲 Обед</button>
+                            <button type="button" class="btn btn-sm btn-outline-light text-nowrap fw-bold" onclick="applyPreset('formation', '🕒 Вечерна проверка', 'Вечерната проверка ще се проведе в: \nПричина: ')">🌙 Вечер</button>
                         </div>
-                        
+                        <div class="row g-2 mb-2">
+                            <div class="col-6">
+                                <select name="announcement_type" id="id_announcement_type" class="form-select form-select-sm fw-bold">
+                                    <option value="formation" selected>💂 СТРОЙ (Промяна)</option>
+                                    <option value="assembly">📍 СБОР</option>
+                                    <option value="volunteer">🙋 ДОБРОВОЛЦИ</option>
+                                    <option value="mission">✈️ КОМАНДИР</option>
+                                    <option value="info">ℹ️ ИНФОРМАЦИЯ</option>
+                                    <option value="fire" class="text-danger">🔥 ПОЖАР</option>
+                                    <option value="alarm" class="text-white bg-danger">🚨 ТРЕВОГА</option>
+                                </select>
+                            </div>
+                            <div class="col-6">
+                                <select name="target" class="form-select form-select-sm fw-bold text-danger">
+                                    <option value="all">📢 ДО ВСИЧКИ</option>
+                                    <option value="1">⚓ 1-ва Рота</option>
+                                    <option value="2">⚕️ 2-ра Рота</option>
+                                    <option value="young">👶 Млади</option>
+                                    <option value="staff">⭐ Офицери</option>
+                                </select>
+                            </div>
+                        </div>
+                        <input type="text" name="title" id="id_title" class="form-control form-control-sm mb-2 border-0" placeholder="Заглавие" required>
+                        <textarea name="message" id="id_message" class="form-control form-control-sm border-0 mb-2" rows="2" placeholder="Текст на съобщението или причина..." required></textarea>
                         <button type="submit" class="btn btn-light text-danger fw-bold w-100 shadow-sm">🚀 ПУСНИ СЪОБЩЕНИЕ</button>
                     </form>
-
                     <script>
                         function applyPreset(type, title, message) {
                             document.getElementById('id_announcement_type').value = type;
@@ -235,55 +220,51 @@
                 </div>
             </div>
 
-            <div class="card shadow-sm border-0 mb-4">
-                <div class="card-header bg-dark text-white fw-bold d-flex justify-content-between">
+            {# Дневен ред #}
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-dark text-white fw-bold d-flex justify-content-between py-2">
                     <span>⏱️ Дневен Ред</span>
-                    <span>{{ today|date:"d.m.Y" }}</span>
+                    <span class="text-muted small fw-normal">{{ today|date:"d.m.Y" }}</span>
                 </div>
                 <ul class="list-group list-group-flush">
-                    
-                    <li class="list-group-item">
+                    <li class="list-group-item py-2">
                         <div class="d-flex justify-content-between align-items-center">
-                            <span class="text-muted fw-bold">☀️ Сутрешен строй</span>
-                            {% if schedule.morning.override %}<span class="badge bg-warning text-dark fs-6 shadow-sm">ПРОМЕНЕН</span>{% else %}<strong class="fs-5 text-dark">{{ schedule.morning.default }}</strong>{% endif %}
+                            <span class="text-muted fw-bold small">☀️ Сутрешен строй</span>
+                            {% if schedule.morning.override %}<span class="badge bg-warning text-dark shadow-sm">ПРОМЕНЕН</span>{% else %}<strong class="text-dark">{{ schedule.morning.default }}</strong>{% endif %}
                         </div>
                         {% if schedule.morning.override %}{% include 'roster/partials/schedule_override.html' with item=schedule.morning.override %}{% endif %}
                     </li>
-
-                    <li class="list-group-item">
+                    <li class="list-group-item py-2">
                         <div class="d-flex justify-content-between align-items-center">
-                            <span class="text-muted fw-bold">🍲 Обеден строй</span>
-                            {% if schedule.lunch.override %}<span class="badge bg-warning text-dark fs-6 shadow-sm">ПРОМЕНЕН</span>{% else %}<strong class="fs-5 text-dark">{{ schedule.lunch.default }}</strong>{% endif %}
+                            <span class="text-muted fw-bold small">🍲 Обеден строй</span>
+                            {% if schedule.lunch.override %}<span class="badge bg-warning text-dark shadow-sm">ПРОМЕНЕН</span>{% else %}<strong class="text-dark">{{ schedule.lunch.default }}</strong>{% endif %}
                         </div>
                         {% if schedule.lunch.override %}{% include 'roster/partials/schedule_override.html' with item=schedule.lunch.override %}{% endif %}
                     </li>
-
-                    <li class="list-group-item">
+                    <li class="list-group-item py-2">
                         <div class="d-flex justify-content-between align-items-center">
-                            <span class="text-muted fw-bold">🌙 Вечерна проверка</span>
-                            {% if schedule.evening.override %}<span class="badge bg-warning text-dark fs-6 shadow-sm">ПРОМЕНЕН</span>{% else %}<strong class="fs-5 text-dark">{{ schedule.evening.default }}</strong>{% endif %}
+                            <span class="text-muted fw-bold small">🌙 Вечерна проверка</span>
+                            {% if schedule.evening.override %}<span class="badge bg-warning text-dark shadow-sm">ПРОМЕНЕН</span>{% else %}<strong class="text-dark">{{ schedule.evening.default }}</strong>{% endif %}
                         </div>
                         {% if schedule.evening.override %}{% include 'roster/partials/schedule_override.html' with item=schedule.evening.override %}{% endif %}
                     </li>
                 </ul>
-
                 {% if schedule.other %}
-                <div class="card-footer bg-light border-top">
-                    <h6 class="fw-bold text-secondary mb-3"><i class="bi bi-info-circle-fill"></i> ДРУГИ СЪОБЩЕНИЯ:</h6>
-                    {% for item in schedule.other %}
-                        {% include 'roster/partials/schedule_override.html' with item=item %}
-                    {% endfor %}
+                <div class="card-footer bg-light border-top py-2">
+                    <div class="fw-bold text-secondary mb-1 small"><i class="bi bi-info-circle-fill"></i> ДРУГИ СЪОБЩЕНИЯ:</div>
+                    {% for item in schedule.other %}{% include 'roster/partials/schedule_override.html' with item=item %}{% endfor %}
                 </div>
                 {% endif %}
             </div>
 
+            {# Болни / В Лазарет #}
             <div class="card shadow-sm border-0">
-                <div class="card-header bg-white fw-bold text-danger border-bottom">
+                <div class="card-header bg-white fw-bold text-danger border-bottom py-2">
                     🤒 Болни / В Лазарет
                 </div>
                 <ul class="list-group list-group-flush">
                     {% for leave in sick_today %}
-                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <li class="list-group-item py-2 d-flex justify-content-between align-items-center">
                         <div>
                             <strong>{{ leave.soldier.last_name }}</strong>
                             <div class="small text-muted">{{ leave.reason|default:"Заболяване" }}</div>
@@ -291,21 +272,26 @@
                         <span class="badge bg-danger rounded-pill">{{ leave.soldier.company }} рота</span>
                     </li>
                     {% empty %}
-                    <li class="list-group-item text-center text-muted py-3">Няма болни днес. ✅</li>
+                    <li class="list-group-item text-center text-muted py-2">Няма болни днес. ✅</li>
                     {% endfor %}
                 </ul>
             </div>
 
-        </div> </div> </div> <div class="modal fade" id="soldierModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-body text-center p-5">
-                <div class="spinner-border text-primary"></div>
-                <div class="mt-2 text-muted">Зареждане на досие...</div>
+        </div>{# /дясна зона #}
+
+    </div>{# /главен row #}
+
+    {# Modal за досие на военнослужещ #}
+    <div class="modal fade" id="soldierModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-body text-center p-5">
+                    <div class="spinner-border text-primary"></div>
+                    <div class="mt-2 text-muted">Зареждане на досие...</div>
+                </div>
             </div>
         </div>
     </div>
-</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -313,7 +299,7 @@
 document.addEventListener("DOMContentLoaded", function() {
     var soldierModalEl = document.getElementById("soldierModal");
     if (!soldierModalEl) return;
-    
+
     var soldierModal = new bootstrap.Modal(soldierModalEl);
     var modalContent = soldierModalEl.querySelector(".modal-content");
 
@@ -323,12 +309,12 @@ document.addEventListener("DOMContentLoaded", function() {
             e.preventDefault();
             modalContent.innerHTML = '<div class="modal-body text-center p-5"><div class="spinner-border text-primary"></div><div class="mt-2 text-muted">Зареждане на досие...</div></div>';
             soldierModal.show();
-            
+
             fetch(target.getAttribute("data-url"))
                 .then(res => res.text())
-                .then(html => { 
-                    modalContent.innerHTML = html; 
-                    bindDutyForm(); 
+                .then(html => {
+                    modalContent.innerHTML = html;
+                    bindDutyForm();
                 })
                 .catch(err => console.error("Грешка при зареждане:", err));
         }
