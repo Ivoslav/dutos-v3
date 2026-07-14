@@ -84,55 +84,64 @@
   <body hx-boost="true">
     
     <!-- ГЛАВНА НАВИГАЦИЯ -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4 shadow-sm py-3">
+    <nav class="navbar navbar-expand-lg navbar-dark mb-4 shadow-sm py-3">
         <div class="container-fluid px-4">
-            <!-- Лого / Име на системата (Уголемено с fs-4) -->
+            <!-- Лого / Име на системата -->
             <a class="navbar-brand fw-bold fs-4" href="{% url 'roster_home' %}">
                 ⚓ DUTOS <span class="badge bg-primary ms-1" style="font-size: 0.6em;">v3</span>
             </a>
             
             <!-- Бутон за мобилни телефони -->
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavigation">
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavigation" aria-controls="mainNavigation" aria-expanded="false" aria-label="Отвори меню">
                 <span class="navbar-toggler-icon"></span>
             </button>
 
             <!-- Менютата -->
             <div class="collapse navbar-collapse" id="mainNavigation">
                 
-                <!-- ПРОМЯНА: mx-auto ги центрира, fs-5 ги прави по-големи -->
                 <ul class="navbar-nav mx-auto mb-2 mb-lg-0 fs-5">
-                    
-                    <!-- 1. КОМАНДЕН ПУЛТ -->
-                    <li class="nav-item mx-2">
-                        <a class="nav-link" href="{% url 'roster_home' %}">🏠 Пулт</a>
+
+                    <!-- 2. ЛИЧЕН СЪСТАВ -->
+                    <li class="nav-item dropdown mx-2">
+                        <a class="nav-link dropdown-toggle" href="#" id="personnelDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            👥 Личен Състав
+                        </a>
+                        <ul class="dropdown-menu shadow border-0 fs-6" aria-labelledby="personnelDropdown">
+                            <li><a class="dropdown-item py-2" href="{% url 'roster_stats' %}"><strong>📊 Списък и Точки</strong><br><small class="text-muted">Натовареност и структура</small></a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item py-2" href="{% url 'daily_roster' %}"><strong>📋 Дневен Разход</strong><br><small class="text-muted">Наличност и отсъстващи</small></a></li>
+                        </ul>
                     </li>
 
-                    <!-- 2. ГРАФИЦИ -->
+                    <!-- 3. НАРЯДИ -->
                     <li class="nav-item dropdown mx-2">
                         <a class="nav-link dropdown-toggle" href="#" id="rosterDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                             📅 Наряди
                         </a>
                         <ul class="dropdown-menu shadow border-0 fs-6" aria-labelledby="rosterDropdown">
-                            <li><a class="dropdown-item py-2" href="{% url 'daily_roster' %}"><strong>Дневен График</strong><br><small class="text-muted">Кой е на служба днес</small></a></li>
+                            <li><a class="dropdown-item py-2" href="{% url 'roster_lifecycle' %}"><strong>🗓️ Месечен План</strong><br><small class="text-muted">Генератор и управление</small></a></li>
                             <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item py-2" href="{% url 'roster_lifecycle' %}"><strong>Генератор (Месец)</strong><br><small class="text-muted">Автоматично планиране</small></a></li>
+                            <li><a class="dropdown-item py-2" href="{% url 'daily_roster' %}"><strong>📋 Дневен Наряд</strong><br><small class="text-muted">Кой е на служба днес</small></a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item py-2" href="{% url 'swap_manager' %}"><strong>🔄 Борса Размени</strong><br><small class="text-muted">Заявки за смяна на наряд</small></a></li>
                         </ul>
                     </li>
 
-                    <!-- 3. ЛИЧЕН СЪСТАВ -->
+                    <!-- 4. ПЕЧАТ / СПРАВКИ -->
                     <li class="nav-item dropdown mx-2">
-                        <a class="nav-link dropdown-toggle" href="#" id="personnelDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            👥 Състав
+                        <a class="nav-link dropdown-toggle" href="#" id="printDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            🖨️ Печат/Справки
                         </a>
-                        <ul class="dropdown-menu shadow border-0 fs-6" aria-labelledby="personnelDropdown">
-                            <!-- ТУК Е РАЗХОДЪТ -->
-                            <li><a class="dropdown-item py-2" href="{% url 'daily_leave_manager' %}"><strong>📋 Дневен Разход</strong><br><small class="text-muted">Подробна наличност и отсъстващи</small></a></li>
+                        <ul class="dropdown-menu shadow border-0 fs-6" aria-labelledby="printDropdown">
+                            <li><a class="dropdown-item py-2" href="{% url 'roster_calendar' %}"><strong>📅 Месечен График</strong><br><small class="text-muted">Преглед по календар</small></a></li>
                             <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item py-2" href="{% url 'roster_stats' %}"><strong>Статистика и Точки</strong><br><small class="text-muted">Натовареност и масови отпуски</small></a></li>
+                            <li><a class="dropdown-item py-2" href="{% url 'daily_leave_manager' %}"><strong>📄 Дневен Разход – Печат</strong><br><small class="text-muted">Експорт за КПП</small></a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item py-2" href="{% url 'emergency_print' %}"><strong>🚨 Спешен Списък</strong><br><small class="text-muted">При извънредна ситуация</small></a></li>
                         </ul>
                     </li>
 
-                    <!-- 4. СИСТЕМА (Само за Админи) -->
+                    <!-- 5. СИСТЕМА (Само за Админи) -->
                     {% if user.is_superuser %}
                     <li class="nav-item dropdown mx-2">
                         <a class="nav-link dropdown-toggle text-warning" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -218,22 +227,17 @@
             toastList.forEach(toast => toast.show());
         });
 
-        // 2. НОВО: ПАМЕТ ЗА ТАБОВЕТЕ
+        // 2. ПАМЕТ ЗА ТАБОВЕТЕ (в рамките на дадена страница)
         document.addEventListener('DOMContentLoaded', function () {
-            // Създаваме уникално име за паметта спрямо страницата, на която сме
             var storageKey = 'activeTab_' + window.location.pathname;
-            
-            // Проверяваме дали имаме записан таб
             var activeTabId = localStorage.getItem(storageKey);
             if (activeTabId) {
-                var someTabTriggerEl = document.querySelector('#' + activeTabId);
+                var someTabTriggerEl = document.querySelector('[id="' + activeTabId + '"]');
                 if (someTabTriggerEl) {
                     var tab = new bootstrap.Tab(someTabTriggerEl);
                     tab.show();
                 }
             }
-
-            // Когато потребителят цъкне нов таб, го записваме в паметта
             var tabElements = document.querySelectorAll('button[data-bs-toggle="tab"], button[data-bs-toggle="pill"]');
             tabElements.forEach(function(tabEl) {
                 tabEl.addEventListener('shown.bs.tab', function (event) {
