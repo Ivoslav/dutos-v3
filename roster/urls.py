@@ -29,4 +29,5 @@ urlpatterns = [
     path('api/marketplace/', views.api_market_list, name='api_market_list'),
     path('api/marketplace/put/', views.api_market_put, name='api_market_put'),
     path('api/marketplace/take/', views.api_market_take, name='api_market_take'),
+    path('api/test-cursor/', views.api_test_cursor, name='api_test_cursor'),
 ]

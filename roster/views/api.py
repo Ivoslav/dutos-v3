@@ -356,4 +356,12 @@ def api_daily_roster(request):
         "date": target_date.strftime('%Y-%m-%d'),
         "shifts": data
     })
-    
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def api_test_cursor(request):
+    return Response({
+        "status": "success",
+        "message": "Cursor работи перфектно!"
+    })
