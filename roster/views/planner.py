@@ -149,11 +149,19 @@ def roster_lifecycle(request):
         return redirect(f"/roster/lifecycle/?year={target_year}&month={target_month}")
 
     # 3. ПОДГОТОВКА НА ДАННИТЕ ЗА ИЗГЛЕДА
+    MONTHS_BG = [
+        (1, 'Януари'), (2, 'Февруари'), (3, 'Март'),
+        (4, 'Април'),  (5, 'Май'),      (6, 'Юни'),
+        (7, 'Юли'),    (8, 'Август'),   (9, 'Септември'),
+        (10, 'Октомври'), (11, 'Ноември'), (12, 'Декември'),
+    ]
+
     context = {
         'target_year': target_year,
         'target_month': target_month,
         'phase': phase,
         'shifts_count': shifts.count(),
+        'months': MONTHS_BG,
     }
     
     if phase == 1:
